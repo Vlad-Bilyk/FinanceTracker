@@ -2,7 +2,7 @@
 
 namespace FinanceTracker.Domain.Entities;
 
-public class IncomeExpenseType
+public class FinancialOperationType
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

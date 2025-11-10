@@ -51,7 +51,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.ToTable("FinancialOperations");
                 });
 
-            modelBuilder.Entity("FinanceTracker.Domain.Entities.IncomeExpenseType", b =>
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -76,12 +76,12 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.HasIndex("Kind", "Name")
                         .IsUnique();
 
-                    b.ToTable("IncomeExpenseTypes");
+                    b.ToTable("FinancialOperationTypes");
                 });
 
             modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperation", b =>
                 {
-                    b.HasOne("FinanceTracker.Domain.Entities.IncomeExpenseType", "Type")
+                    b.HasOne("FinanceTracker.Domain.Entities.FinancialOperationType", "Type")
                         .WithMany("Operations")
                         .HasForeignKey("TypeId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -90,7 +90,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.Navigation("Type");
                 });
 
-            modelBuilder.Entity("FinanceTracker.Domain.Entities.IncomeExpenseType", b =>
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
                 {
                     b.Navigation("Operations");
                 });

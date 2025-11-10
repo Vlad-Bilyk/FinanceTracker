@@ -9,5 +9,5 @@ public class FinancialOperation
     public string? Note { get; set; }
     public bool IsDeleted { get; set; }
 
-    public IncomeExpenseType Type { get; set; } = null!;
+    public FinancialOperationType Type { get; set; } = null!;
 }

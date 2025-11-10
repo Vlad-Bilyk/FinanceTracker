@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinanceTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251110155555_InitialCreate")]
+    [Migration("20251110181831_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -54,7 +54,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.ToTable("FinancialOperations");
                 });
 
-            modelBuilder.Entity("FinanceTracker.Domain.Entities.IncomeExpenseType", b =>
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -79,12 +79,12 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.HasIndex("Kind", "Name")
                         .IsUnique();
 
-                    b.ToTable("IncomeExpenseTypes");
+                    b.ToTable("FinancialOperationTypes");
                 });
 
             modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperation", b =>
                 {
-                    b.HasOne("FinanceTracker.Domain.Entities.IncomeExpenseType", "Type")
+                    b.HasOne("FinanceTracker.Domain.Entities.FinancialOperationType", "Type")
                         .WithMany("Operations")
                         .HasForeignKey("TypeId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -93,7 +93,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.Navigation("Type");
                 });
 
-            modelBuilder.Entity("FinanceTracker.Domain.Entities.IncomeExpenseType", b =>
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
                 {
                     b.Navigation("Operations");
                 });

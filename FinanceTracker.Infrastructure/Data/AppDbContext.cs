@@ -5,7 +5,7 @@ namespace FinanceTracker.Infrastructure.Data;
 
 public class AppDbContext : DbContext
 {
-    public DbSet<IncomeExpenseType> IncomeExpenseTypes { get; set; }
+    public DbSet<FinancialOperationType> FinancialOperationTypes { get; set; }
     public DbSet<FinancialOperation> FinancialOperations { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -15,7 +15,7 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<IncomeExpenseType>(e =>
+        modelBuilder.Entity<FinancialOperationType>(e =>
         {
             e.Property(x => x.Name)
              .HasMaxLength(100)

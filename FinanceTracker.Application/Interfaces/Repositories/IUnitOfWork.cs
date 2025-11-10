@@ -1,0 +1,16 @@
+﻿namespace FinanceTracker.Application.Interfaces.Repositories;
+
+/// <summary>
+/// Defines a unit of work that coordinates the work of multiple repositories.
+/// </summary>
+public interface IUnitOfWork
+{
+    IFinancialOperationTypeRepository IncomeExpenseTypes { get; }
+    IFinancialOperationRepository FinancialOperations { get; }
+
+    /// <summary>
+    /// Save all tracked changes as a single unit.
+    /// </summary>
+    Task<int> SaveChangesAsync(CancellationToken ct = default);
+}
+

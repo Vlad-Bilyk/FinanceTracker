@@ -12,7 +12,7 @@ namespace FinanceTracker.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "IncomeExpenseTypes",
+                name: "FinancialOperationTypes",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -22,7 +22,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_IncomeExpenseTypes", x => x.Id);
+                    table.PrimaryKey("PK_FinancialOperationTypes", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -40,9 +40,9 @@ namespace FinanceTracker.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_FinancialOperations", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_FinancialOperations_IncomeExpenseTypes_TypeId",
+                        name: "FK_FinancialOperations_FinancialOperationTypes_TypeId",
                         column: x => x.TypeId,
-                        principalTable: "IncomeExpenseTypes",
+                        principalTable: "FinancialOperationTypes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -53,8 +53,8 @@ namespace FinanceTracker.Infrastructure.Migrations
                 column: "TypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_IncomeExpenseTypes_Kind_Name",
-                table: "IncomeExpenseTypes",
+                name: "IX_FinancialOperationTypes_Kind_Name",
+                table: "FinancialOperationTypes",
                 columns: new[] { "Kind", "Name" },
                 unique: true);
         }
@@ -66,7 +66,7 @@ namespace FinanceTracker.Infrastructure.Migrations
                 name: "FinancialOperations");
 
             migrationBuilder.DropTable(
-                name: "IncomeExpenseTypes");
+                name: "FinancialOperationTypes");
         }
     }
 }
