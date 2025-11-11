@@ -31,10 +31,12 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Services
 builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
+builder.Services.AddScoped<IFinancialOperationService, FinancialOperationService>();
 
 // Validators
 builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
 builder.Services.AddScoped<IValidator<OperationTypeUpdateDto>, OperationTypeUpdateValidator>();
+builder.Services.AddScoped<IValidator<FinancialOperationUpsertDto>, FinancialOperationUpsertValidator>();
 
 // Configure Swagger
 builder.Services.AddControllers()

@@ -19,6 +19,23 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         return await _context.FinancialOperations.FindAsync([id], ct);
     }
 
+    public async Task<FinancialOperation?> GetByIdWithTypeAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _context.FinancialOperations
+            .AsNoTracking()
+            .Include(x => x.Type)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+    }
+
+    public async Task<IReadOnlyList<FinancialOperation>> GetAllWithTypeAsync(CancellationToken ct = default)
+    {
+        return await _context.FinancialOperations
+            .AsNoTracking()
+            .Include(x => x.Type)
+            .OrderBy(x => x.Date)
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(DateOnly date, CancellationToken ct = default)
     {
         var start = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
@@ -48,6 +65,7 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         await _context.FinancialOperations.AddAsync(entity, ct);
     }
 
+    /// <inheritdoc/>
     public void SoftDelete(FinancialOperation entity)
     {
         entity.IsDeleted = true;

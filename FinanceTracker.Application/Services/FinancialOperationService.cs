@@ -1,0 +1,88 @@
+﻿using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.Exceptions;
+using FinanceTracker.Application.Interfaces;
+using FinanceTracker.Application.Interfaces.Repositories;
+using FinanceTracker.Domain.Entities;
+using FluentValidation;
+
+namespace FinanceTracker.Application.Services;
+
+public class FinancialOperationService : IFinancialOperationService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IValidator<FinancialOperationUpsertDto> _upsertValidator;
+
+    public FinancialOperationService(IUnitOfWork unitOfWork, IValidator<FinancialOperationUpsertDto> upsertValidator)
+    {
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _upsertValidator = upsertValidator ?? throw new ArgumentNullException(nameof(upsertValidator));
+    }
+
+    public async Task<FinancialOperationDetailsDto> GetOperationByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var entity = await _unitOfWork.FinancialOperations.GetByIdWithTypeAsync(id, ct)
+            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+
+        return new FinancialOperationDetailsDto(entity.Id, entity.TypeId, entity.Type.Name,
+            entity.Type.Kind, entity.Amount, entity.Date, entity.Note);
+    }
+
+    public async Task<IReadOnlyList<FinancialOperationDetailsDto>> GetAllOperationsAsync(CancellationToken ct = default)
+    {
+        var entities = await _unitOfWork.FinancialOperations.GetAllWithTypeAsync(ct);
+
+        return entities.Select(e => new FinancialOperationDetailsDto(
+            e.Id, e.TypeId, e.Type.Name, e.Type.Kind, e.Amount, e.Date, e.Note
+            )).ToList();
+    }
+
+    public async Task<Guid> CreateOperationAsync(FinancialOperationUpsertDto createDto, CancellationToken ct = default)
+    {
+        await _upsertValidator.ValidateAndThrowAsync(createDto, ct);
+
+        _ = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(createDto.TypeId, ct)
+            ?? throw new NotFoundException($"Operation type with id {createDto.TypeId} was not found");
+
+        var entity = new FinancialOperation
+        {
+            Id = Guid.NewGuid(),
+            TypeId = createDto.TypeId,
+            Amount = createDto.Amount,
+            Date = createDto.Date,
+            Note = createDto.Note,
+        };
+
+        await _unitOfWork.FinancialOperations.AddAsync(entity, ct);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return entity.Id;
+    }
+
+    public async Task UpdateOperationAsync(Guid id, FinancialOperationUpsertDto updateDto, CancellationToken ct = default)
+    {
+        var entity = await _unitOfWork.FinancialOperations.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+
+        await _upsertValidator.ValidateAndThrowAsync(updateDto, ct);
+
+        _ = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(updateDto.TypeId, ct)
+            ?? throw new NotFoundException($"Operation type with id {updateDto.TypeId} was not found");
+
+        entity.TypeId = updateDto.TypeId;
+        entity.Amount = updateDto.Amount;
+        entity.Date = updateDto.Date;
+        entity.Note = updateDto.Note;
+
+        _unitOfWork.FinancialOperations.Update(entity);
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    public async Task SoftDeleteOperationAsync(Guid id, CancellationToken ct = default)
+    {
+        var entity = await _unitOfWork.FinancialOperations.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+
+        _unitOfWork.FinancialOperations.SoftDelete(entity);
+        await _unitOfWork.SaveChangesAsync(ct);
+    }
+}

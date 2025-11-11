@@ -10,12 +10,14 @@ public class OperationTypeCreateValidator : AbstractValidator<OperationTypeCreat
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required")
-            .MaximumLength(ValidationConstants.OperationTypeNameMaxLength);
+            .MaximumLength(ValidationConstants.OperationTypeNameMaxLength)
+                .WithMessage($"Name cannot exceed {ValidationConstants.OperationTypeNameMaxLength} characters");
 
         RuleFor(x => x.Description)
-            .MaximumLength(ValidationConstants.OperationTypeDescriptionMaxLength);
+            .MaximumLength(ValidationConstants.OperationTypeDescriptionMaxLength)
+                .WithMessage($"Description cannot exceed {ValidationConstants.OperationTypeDescriptionMaxLength} characters");
 
         RuleFor(x => x.Kind)
-            .IsInEnum();
+            .IsInEnum().WithMessage("Invalid operation kind. Allowed values: Income, Expense"); ;
     }
 }
