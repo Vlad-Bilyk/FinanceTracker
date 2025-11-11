@@ -1,4 +1,5 @@
-﻿using FinanceTracker.Domain.Entities;
+﻿using FinanceTracker.Application.Common;
+using FinanceTracker.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinanceTracker.Infrastructure.Data;
@@ -18,11 +19,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<FinancialOperationType>(e =>
         {
             e.Property(x => x.Name)
-             .HasMaxLength(100)
+             .HasMaxLength(ValidationConstants.OperationTypeNameMaxLength)
              .IsRequired();
 
             e.Property(x => x.Description)
-             .HasMaxLength(500);
+             .HasMaxLength(ValidationConstants.OperationTypeDescriptionMaxLength);
 
             e.Property(x => x.Kind)
              .HasConversion<string>();
@@ -34,7 +35,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<FinancialOperation>(e =>
         {
             e.Property(x => x.Note)
-             .HasMaxLength(500);
+             .HasMaxLength(ValidationConstants.OperationNoteMaxLength);
 
             e.HasQueryFilter(x => !x.IsDeleted);
 

@@ -5,7 +5,7 @@
 /// </summary>
 public interface IUnitOfWork
 {
-    IFinancialOperationTypeRepository IncomeExpenseTypes { get; }
+    IFinancialOperationTypeRepository FinancialOperationTypes { get; }
     IFinancialOperationRepository FinancialOperations { get; }
 
     /// <summary>

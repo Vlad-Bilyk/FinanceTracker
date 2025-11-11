@@ -1,5 +1,6 @@
 ﻿using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Domain.Entities;
+using FinanceTracker.Domain.Enums;
 using FinanceTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,18 @@ public class FinancialOperationTypeRepository : IFinancialOperationTypeRepositor
     public async Task AddAsync(FinancialOperationType entity, CancellationToken ct = default)
     {
         await _context.FinancialOperationTypes.AddAsync(entity, ct);
+    }
+
+    public async Task<bool> ExistsByNameKindAsync(Guid? excludeId, string name, OperationKind kind, CancellationToken ct)
+    {
+        var normalizedName = name.Trim().ToLowerInvariant();
+
+        return await _context.FinancialOperationTypes
+            .AsNoTracking()
+            .Where(x => x.Kind == kind &&
+                        x.Name.Trim().ToLower() == normalizedName &&
+                        (!excludeId.HasValue || x.Id != excludeId.Value))
+            .AnyAsync(ct);
     }
 
     public void Update(FinancialOperationType entity)

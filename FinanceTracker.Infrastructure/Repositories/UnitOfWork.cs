@@ -10,7 +10,7 @@ public class UnitOfWork : IUnitOfWork
 {
     private readonly AppDbContext _context;
 
-    public IFinancialOperationTypeRepository IncomeExpenseTypes { get; }
+    public IFinancialOperationTypeRepository FinancialOperationTypes { get; }
     public IFinancialOperationRepository FinancialOperations { get; }
 
     public UnitOfWork(
@@ -19,7 +19,7 @@ public class UnitOfWork : IUnitOfWork
         IFinancialOperationRepository operationRepository)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
-        IncomeExpenseTypes = typeRepository ?? throw new ArgumentNullException(nameof(typeRepository));
+        FinancialOperationTypes = typeRepository ?? throw new ArgumentNullException(nameof(typeRepository));
         FinancialOperations = operationRepository ?? throw new ArgumentNullException(nameof(operationRepository));
     }
 
