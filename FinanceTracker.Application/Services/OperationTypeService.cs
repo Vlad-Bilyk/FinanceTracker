@@ -92,6 +92,13 @@ public class OperationTypeService : IOperationTypeService
         var entity = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Financial operation type with id {id} not found");
 
+        var isUsed = await _unitOfWork.FinancialOperations.AnyByTypeIdAsync(id, ct);
+
+        if (isUsed)
+        {
+            throw new ConflictException("Cannot delete operation type because it is used in existing operations.");
+        }
+
         _unitOfWork.FinancialOperationTypes.Delete(entity);
         await _unitOfWork.SaveChangesAsync(ct);
     }

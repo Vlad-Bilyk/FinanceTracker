@@ -10,6 +10,7 @@ public interface IFinancialOperationRepository
     Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(DateOnly date, CancellationToken ct = default);
     Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(DateOnly start, DateOnly end, CancellationToken ct = default);
     Task AddAsync(FinancialOperation entity, CancellationToken ct = default);
+    Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct);
     void Update(FinancialOperation entity);
 
     /// <summary>

@@ -51,6 +51,12 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         await _context.FinancialOperations.AddAsync(entity, ct);
     }
 
+    public async Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct)
+    {
+        return await _context.FinancialOperations
+            .AnyAsync(x => x.TypeId == typeId, ct);
+    }
+
     /// <inheritdoc/>
     public void SoftDelete(FinancialOperation entity)
     {

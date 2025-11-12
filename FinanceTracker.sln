@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinanceTracker.Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinanceTracker.Domain", "FinanceTracker.Domain\FinanceTracker.Domain.csproj", "{AED21492-3ADF-4753-B1CD-5972AA1049EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinanceTracker.Tests", "FinanceTracker.Tests\FinanceTracker.Tests.csproj", "{0417118C-C31D-4B40-923C-941580AF2D0C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{AED21492-3ADF-4753-B1CD-5972AA1049EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AED21492-3ADF-4753-B1CD-5972AA1049EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AED21492-3ADF-4753-B1CD-5972AA1049EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0417118C-C31D-4B40-923C-941580AF2D0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0417118C-C31D-4B40-923C-941580AF2D0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0417118C-C31D-4B40-923C-941580AF2D0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0417118C-C31D-4B40-923C-941580AF2D0C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

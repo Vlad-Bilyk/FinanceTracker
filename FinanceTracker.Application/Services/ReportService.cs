@@ -39,7 +39,7 @@ public class ReportService : IReportService
         {
             throw new ValidationException(errors:
             [
-                new ValidationFailure(nameof(start) + nameof(end), "")
+                new ValidationFailure(nameof(start) + nameof(end), "End date must be after or equal to start date")
             ]);
         }
 
