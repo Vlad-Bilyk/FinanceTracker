@@ -78,7 +78,7 @@ public class ReportService : IReportService
                 e.TypeId,
                 e.Type.Name,
                 e.Type.Kind,
-                e.Amount,
+                e.AmountBase,
                 e.Date,
                 e.Note))
             .ToList();

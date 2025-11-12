@@ -37,7 +37,7 @@ public class ReportServiceTests
                 Name = typeName,
                 Kind = kind
             },
-            Amount = amount,
+            AmountBase = amount,
             Date = date,
             Note = note
         };

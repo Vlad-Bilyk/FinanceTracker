@@ -24,7 +24,7 @@ public class FinancialOperationService : IFinancialOperationService
             ?? throw new NotFoundException($"Financial operation with id {id} was not found");
 
         return new FinancialOperationDetailsDto(entity.Id, entity.TypeId, entity.Type.Name,
-            entity.Type.Kind, entity.Amount, entity.Date, entity.Note);
+            entity.Type.Kind, entity.AmountBase, entity.Date, entity.Note);
     }
 
     public async Task<IReadOnlyList<FinancialOperationDetailsDto>> GetAllOperationsAsync(CancellationToken ct = default)
@@ -32,7 +32,7 @@ public class FinancialOperationService : IFinancialOperationService
         var entities = await _unitOfWork.FinancialOperations.GetAllWithTypeAsync(ct);
 
         return entities.Select(e => new FinancialOperationDetailsDto(
-            e.Id, e.TypeId, e.Type.Name, e.Type.Kind, e.Amount, e.Date, e.Note
+            e.Id, e.TypeId, e.Type.Name, e.Type.Kind, e.AmountBase, e.Date, e.Note
             )).ToList();
     }
 
@@ -47,7 +47,7 @@ public class FinancialOperationService : IFinancialOperationService
         {
             Id = Guid.NewGuid(),
             TypeId = createDto.TypeId,
-            Amount = createDto.Amount,
+            AmountBase = createDto.Amount,
             Date = createDto.Date,
             Note = createDto.Note,
         };
@@ -69,7 +69,7 @@ public class FinancialOperationService : IFinancialOperationService
             ?? throw new NotFoundException($"Operation type with id {updateDto.TypeId} was not found");
 
         entity.TypeId = updateDto.TypeId;
-        entity.Amount = updateDto.Amount;
+        entity.AmountBase = updateDto.Amount;
         entity.Date = updateDto.Date;
         entity.Note = updateDto.Note;
 

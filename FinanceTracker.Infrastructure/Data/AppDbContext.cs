@@ -8,6 +8,8 @@ public class AppDbContext : DbContext
 {
     public DbSet<FinancialOperationType> FinancialOperationTypes { get; set; }
     public DbSet<FinancialOperation> FinancialOperations { get; set; }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Wallet> Wallets { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     { }
@@ -34,15 +36,63 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<FinancialOperation>(e =>
         {
+            e.Property(x => x.TypeId).IsRequired();
+            e.Property(x => x.WalletId).IsRequired();
+
+            e.Property(x => x.AmountBase)
+             .HasPrecision(18, 2);
+
             e.Property(x => x.Note)
              .HasMaxLength(ValidationConstants.OperationNoteMaxLength);
 
-            e.HasQueryFilter(x => !x.IsDeleted);
+            e.Property(x => x.CurrencyOriginal)
+             .HasMaxLength(ValidationConstants.CurrencyCodeLength)
+             .IsFixedLength();
 
             e.HasOne(x => x.Type)
              .WithMany(t => t.Operations)
              .HasForeignKey(x => x.TypeId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<User>(e =>
+        {
+            e.Property(x => x.UserName)
+             .HasMaxLength(ValidationConstants.UserNameMaxLength)
+             .IsRequired();
+
+            e.Property(x => x.PasswordHash)
+             .IsRequired();
+
+            e.HasIndex(x => x.UserName)
+             .IsUnique();
+        });
+
+        modelBuilder.Entity<Wallet>(e =>
+        {
+            e.Property(x => x.Name)
+             .HasMaxLength(ValidationConstants.WalletNameMaxLength)
+             .IsRequired();
+
+            e.Property(w => w.BaseCurrencyCode)
+             .HasMaxLength(3)
+             .IsFixedLength()
+             .IsRequired();
+
+            e.HasIndex(x => new { x.UserId, x.Name })
+             .IsUnique();
+
+            e.HasOne(x => x.User)
+             .WithMany(u => u.Wallets)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(x => x.Operations)
+             .WithOne(o => o.Wallet)
+             .HasForeignKey(o => o.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
