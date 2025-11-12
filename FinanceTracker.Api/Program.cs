@@ -9,6 +9,7 @@ using FinanceTracker.Infrastructure.Repositories;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,6 +33,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Services
 builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
 builder.Services.AddScoped<IFinancialOperationService, FinancialOperationService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 // Validators
 builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
@@ -50,6 +52,9 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Finance Tracker API",
         Version = "v1"
     });
+
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 });
 
 var app = builder.Build();

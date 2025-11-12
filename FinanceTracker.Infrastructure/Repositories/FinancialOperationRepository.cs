@@ -38,26 +38,12 @@ public class FinancialOperationRepository : IFinancialOperationRepository
 
     public async Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(DateOnly date, CancellationToken ct = default)
     {
-        var start = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-        var end = new DateTimeOffset(date.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-
-        return await _context.FinancialOperations
-            .AsNoTracking()
-            .Where(x => x.Date >= start && x.Date < end)
-            .OrderBy(x => x.Date)
-            .ToListAsync(ct);
+        return await GetOperationsInRangeAsync(date, date, ct);
     }
 
-    public async Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(DateOnly from, DateOnly to, CancellationToken ct = default)
+    public async Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(DateOnly start, DateOnly end, CancellationToken ct = default)
     {
-        var start = new DateTimeOffset(from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-        var end = new DateTimeOffset(to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-
-        return await _context.FinancialOperations
-            .AsNoTracking()
-            .Where(x => x.Date >= start && x.Date < end)
-            .OrderBy(x => x.Date)
-            .ToListAsync(ct);
+        return await GetOperationsInRangeAsync(start, end, ct);
     }
 
     public async Task AddAsync(FinancialOperation entity, CancellationToken ct = default)
@@ -75,5 +61,23 @@ public class FinancialOperationRepository : IFinancialOperationRepository
     public void Update(FinancialOperation entity)
     {
         _context.FinancialOperations.Update(entity);
+    }
+
+    private async Task<IReadOnlyList<FinancialOperation>> GetOperationsInRangeAsync(DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        var start = ToUtcDateTimeOffset(from);
+        var end = ToUtcDateTimeOffset(to.AddDays(1));
+
+        return await _context.FinancialOperations
+            .AsNoTracking()
+            .Include(x => x.Type)
+            .Where(x => x.Date >= start && x.Date < end)
+            .OrderBy(x => x.Date)
+            .ToListAsync(ct);
+    }
+
+    private static DateTimeOffset ToUtcDateTimeOffset(DateOnly date)
+    {
+        return new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
     }
 }
