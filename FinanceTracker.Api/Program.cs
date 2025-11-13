@@ -1,11 +1,13 @@
 using FinanceTracker.Api.Middlewares;
 using FinanceTracker.Application.DTOs;
-using FinanceTracker.Application.Interfaces;
+using FinanceTracker.Application.DTOs.Auth;
 using FinanceTracker.Application.Interfaces.Repositories;
+using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Application.Services;
 using FinanceTracker.Application.Validators;
 using FinanceTracker.Infrastructure.Data;
 using FinanceTracker.Infrastructure.Repositories;
+using FinanceTracker.Infrastructure.Services;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -23,7 +25,7 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithEnvironmentName()
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] [{UserId}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] [{UserId}] {Message:lj}{NewLine}")
     .WriteTo.File(
         path: "Logs/app-.log",
         rollingInterval: RollingInterval.Day,
@@ -51,17 +53,23 @@ try
     // Repositories
     builder.Services.AddScoped<IFinancialOperationTypeRepository, FinancialOperationTypeRepository>();
     builder.Services.AddScoped<IFinancialOperationRepository, FinancialOperationRepository>();
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
     // Services
     builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
     builder.Services.AddScoped<IFinancialOperationService, FinancialOperationService>();
     builder.Services.AddScoped<IReportService, ReportService>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+    builder.Services.AddScoped<ITokenService, TokenService>();
 
     // Validators
     builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
     builder.Services.AddScoped<IValidator<OperationTypeUpdateDto>, OperationTypeUpdateValidator>();
     builder.Services.AddScoped<IValidator<FinancialOperationUpsertDto>, FinancialOperationUpsertValidator>();
+    builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
+    builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
 
     // Configure Swagger
     builder.Services.AddControllers()
@@ -83,8 +91,8 @@ try
     var app = builder.Build();
 
     // Configure the HTTP request pipeline.
-    app.UseExceptionHandler();
     app.UseMiddleware<RequestResponseLoggingMiddleware>();
+    app.UseExceptionHandler();
 
     if (app.Environment.IsDevelopment())
     {

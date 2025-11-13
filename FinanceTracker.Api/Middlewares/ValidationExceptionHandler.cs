@@ -22,9 +22,6 @@ internal sealed class ValidationExceptionHandler : IExceptionHandler
             return false;
         }
 
-        _logger.LogWarning("Validation failed for {Path}. Error message: {Message}",
-            httpContext.Request.Path, exception.Message);
-
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         var context = new ProblemDetailsContext
         {
@@ -46,8 +43,12 @@ internal sealed class ValidationExceptionHandler : IExceptionHandler
             );
         context.ProblemDetails.Extensions.Add("errors", errors);
 
+        _logger.LogWarning(
+            "Validation failed | Fields: {Fields}",
+            string.Join(", ", errors.Keys));
+
         var wrote = await _problemDetailsService.TryWriteAsync(context);
-        if (!wrote || !httpContext.Response.HasStarted)
+        if (!wrote && !httpContext.Response.HasStarted)
         {
             httpContext.Response.ContentType = "application/problem+json";
             await httpContext.Response.WriteAsJsonAsync(context.ProblemDetails, cancellationToken);

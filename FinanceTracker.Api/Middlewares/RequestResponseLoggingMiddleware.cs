@@ -30,37 +30,42 @@ internal sealed class RequestResponseLoggingMiddleware
         var stopwatch = Stopwatch.StartNew();
 
         using (LogContext.PushProperty("CorrelationId", correlationId))
-        using (LogContext.PushProperty("UserId", userId ?? "Anonymous"))
-
+        using (LogContext.PushProperty("UserId", userId))
         using (_logger.BeginScope(new Dictionary<string, object?>
         {
             ["CorrelationId"] = correlationId,
             ["UserId"] = userId
         }))
         {
-            await LogRequestAsync(context, correlationId);
+            await LogRequestAsync(context);
 
             var originalResponseBody = context.Response.Body;
+
             using var responseMemoryStream = new MemoryStream();
             context.Response.Body = responseMemoryStream;
 
             try
             {
                 await _next(context);
-                stopwatch.Stop();
-
-                await LogResponseAsync(context, correlationId, stopwatch.ElapsedMilliseconds);
             }
             finally
             {
+                stopwatch.Stop();
+
+                responseMemoryStream.Seek(0, SeekOrigin.Begin);
+                var responseBody = await ReadStreamAsync(responseMemoryStream);
+
+                LogResponseAsync(context, stopwatch.ElapsedMilliseconds, responseBody);
+
                 responseMemoryStream.Seek(0, SeekOrigin.Begin);
                 await responseMemoryStream.CopyToAsync(originalResponseBody);
+
                 context.Response.Body = originalResponseBody;
             }
         }
     }
 
-    private async Task LogRequestAsync(HttpContext context, string correlationId)
+    private async Task LogRequestAsync(HttpContext context)
     {
         var request = context.Request;
 
@@ -69,47 +74,31 @@ internal sealed class RequestResponseLoggingMiddleware
 
         _logger.LogInformation(
            "HTTP Request: {Method} {Path} {QueryString} | " +
-           "CorrelationId: {CorrelationId} | " +
-           "UserId: {UserId} | " +
            "Body: {RequestBody}",
            request.Method,
            request.Path,
            request.QueryString.HasValue ? request.QueryString.Value : "",
-           correlationId,
-           GetUserId(context),
            sanitizedBody);
     }
 
-    private async Task LogResponseAsync(HttpContext context, string correlationId, long elapsedMs)
+    private void LogResponseAsync(HttpContext context, long elapsedMs, string responseBody)
     {
         var response = context.Response;
-
-        string responseBody = await ReadResponseBodyAsync(response);
         var sanitizedBody = RedactSensitiveData(responseBody);
 
-        LogLevel logLevel;
-
-        if (response.StatusCode >= 500)
+        LogLevel logLevel = response.StatusCode switch
         {
-            logLevel = LogLevel.Error;
-        }
-        else if (response.StatusCode >= 400)
-        {
-            logLevel = LogLevel.Warning;
-        }
-        else
-        {
-            logLevel = LogLevel.Information;
-        }
+            >= 500 => LogLevel.Error,
+            >= 400 => LogLevel.Warning,
+            _ => LogLevel.Information
+        };
 
         _logger.Log(
             logLevel,
             "HTTP Response: {StatusCode} | " +
-            "CorrelationId: {CorrelationId} | " +
             "ElapsedMs: {ElapsedMs} | " +
             "Body: {ResponseBody}",
             response.StatusCode,
-            correlationId,
             elapsedMs,
             sanitizedBody);
     }
@@ -138,21 +127,21 @@ internal sealed class RequestResponseLoggingMiddleware
         return body;
     }
 
-    private static async Task<string> ReadResponseBodyAsync(HttpResponse response)
+    private static async Task<string> ReadStreamAsync(Stream stream)
     {
-        response.Body.Seek(0, SeekOrigin.Begin);
+        stream.Seek(0, SeekOrigin.Begin);
 
         using var reader = new StreamReader(
-            response.Body,
+            stream,
             Encoding.UTF8,
             detectEncodingFromByteOrderMarks: false,
             bufferSize: 1024,
             leaveOpen: true);
 
-        var body = await reader.ReadToEndAsync();
-        response.Body.Seek(0, SeekOrigin.Begin);
+        var content = await reader.ReadToEndAsync();
+        stream.Seek(0, SeekOrigin.Begin);
 
-        return body;
+        return content;
     }
 
     private static string? RedactSensitiveData(string? data)
