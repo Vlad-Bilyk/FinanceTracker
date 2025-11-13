@@ -22,8 +22,8 @@ internal sealed class ValidationExceptionHandler : IExceptionHandler
             return false;
         }
 
-        //_logger.LogWarning("Validation failed for {Path}. Error message: {Message}",
-        //    httpContext.Request.Path, exception.Message);
+        _logger.LogWarning("Validation failed for {Path}. Error message: {Message}",
+            httpContext.Request.Path, exception.Message);
 
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         var context = new ProblemDetailsContext

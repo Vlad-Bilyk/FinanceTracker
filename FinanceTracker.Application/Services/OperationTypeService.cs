@@ -4,6 +4,7 @@ using FinanceTracker.Application.Interfaces;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Domain.Entities;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace FinanceTracker.Application.Services;
 
@@ -12,12 +13,15 @@ public class OperationTypeService : IOperationTypeService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<OperationTypeCreateDto> _createValidator;
     private readonly IValidator<OperationTypeUpdateDto> _updateValidator;
+    private readonly ILogger<OperationTypeService> _logger;
 
-    public OperationTypeService(IUnitOfWork unitOfWork, IValidator<OperationTypeCreateDto> createValidator, IValidator<OperationTypeUpdateDto> updateValidator)
+    public OperationTypeService(IUnitOfWork unitOfWork, IValidator<OperationTypeCreateDto> createValidator,
+        IValidator<OperationTypeUpdateDto> updateValidator, ILogger<OperationTypeService> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _createValidator = createValidator ?? throw new ArgumentNullException(nameof(createValidator));
         _updateValidator = updateValidator ?? throw new ArgumentNullException(nameof(updateValidator));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<OperationTypeDto> GetTypeByIdAsync(Guid id, CancellationToken ct = default)
@@ -25,6 +29,7 @@ public class OperationTypeService : IOperationTypeService
         var entity = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Financial operation type with id {id} not found");
 
+        _logger.LogInformation("Retrieved financial operation type with id {OperationTypeId}", id);
         return new OperationTypeDto(entity.Id, entity.Name, entity.Description, entity.Kind);
     }
 
@@ -32,6 +37,7 @@ public class OperationTypeService : IOperationTypeService
     {
         var entities = await _unitOfWork.FinancialOperationTypes.GetAllAsync(ct);
 
+        _logger.LogInformation("Retrieved all financial operation types");
         return entities.Select(e => new OperationTypeDto(e.Id, e.Name, e.Description, e.Kind)).ToList();
     }
 
@@ -57,6 +63,8 @@ public class OperationTypeService : IOperationTypeService
         await _unitOfWork.FinancialOperationTypes.AddAsync(entity, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
+
+        _logger.LogInformation("Created financial operation type with id {OperationTypeId}", entity.Id);
         return entity.Id;
     }
 
@@ -85,6 +93,8 @@ public class OperationTypeService : IOperationTypeService
 
         _unitOfWork.FinancialOperationTypes.Update(entity);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Updated financial operation type with id {OperationTypeId}", id);
     }
 
     public async Task DeleteTypeAsync(Guid id, CancellationToken ct = default)
@@ -101,5 +111,7 @@ public class OperationTypeService : IOperationTypeService
 
         _unitOfWork.FinancialOperationTypes.Delete(entity);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Deleted financial operation type with id {OperationTypeId}", id);
     }
 }

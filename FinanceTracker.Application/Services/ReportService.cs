@@ -5,16 +5,19 @@ using FinanceTracker.Domain.Entities;
 using FinanceTracker.Domain.Enums;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.Extensions.Logging;
 
 namespace FinanceTracker.Application.Services;
 
 public class ReportService : IReportService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<ReportService> _logger;
 
-    public ReportService(IUnitOfWork unitOfWork)
+    public ReportService(IUnitOfWork unitOfWork, ILogger<ReportService> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<FinanceReport> CreateDailyReportAsync(
@@ -22,6 +25,7 @@ public class ReportService : IReportService
     {
         var operations = await GetOperationsAsync(date, ct);
 
+        _logger.LogInformation("Generated daily report for date {Date} with {OperationCount} operations", date, operations.Count);
         return new FinanceReport
         {
             Start = date,
@@ -45,6 +49,8 @@ public class ReportService : IReportService
 
         var operations = await GetOperationsAsync(start, end, ct);
 
+        _logger.LogInformation("Generated period report from {StartDate} to {EndDate} with {OperationCount} operations",
+            start, end, operations.Count);
         return new FinanceReport
         {
             Start = start,

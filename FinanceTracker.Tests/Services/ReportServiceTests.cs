@@ -4,6 +4,7 @@ using FinanceTracker.Domain.Entities;
 using FinanceTracker.Domain.Enums;
 using FluentAssertions;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace FinanceTracker.Tests.Services;
@@ -12,16 +13,18 @@ public class ReportServiceTests
 {
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IFinancialOperationRepository> _opRepositoryMock;
+    private readonly Mock<ILogger<ReportService>> _loggerMock;
     private readonly ReportService _sut;
 
     public ReportServiceTests()
     {
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _opRepositoryMock = new Mock<IFinancialOperationRepository>();
+        _loggerMock = new Mock<ILogger<ReportService>>();
 
         _unitOfWorkMock.Setup(u => u.FinancialOperations).Returns(_opRepositoryMock.Object);
 
-        _sut = new ReportService(_unitOfWorkMock.Object);
+        _sut = new ReportService(_unitOfWorkMock.Object, _loggerMock.Object);
     }
 
     private static FinancialOperation CreateOperation(Guid? id, Guid typeId, string typeName,
@@ -47,11 +50,22 @@ public class ReportServiceTests
     public void Constructor_WithNullUnitOfWork_ThrowsArgumentNullException()
     {
         // Act
-        var act = () => new ReportService(null!);
+        var act = () => new ReportService(null!, _loggerMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("unitOfWork");
+    }
+
+    [Fact]
+    public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => new ReportService(_unitOfWorkMock.Object, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("logger");
     }
 
     [Fact]

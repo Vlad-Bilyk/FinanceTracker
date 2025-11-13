@@ -7,6 +7,7 @@ using FinanceTracker.Domain.Enums;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace FinanceTracker.Tests.Services;
@@ -18,6 +19,7 @@ public class OperationTypeServiceTests
     private readonly Mock<IFinancialOperationRepository> _opRepositoryMock;
     private readonly Mock<IValidator<OperationTypeCreateDto>> _createValidatorMock;
     private readonly Mock<IValidator<OperationTypeUpdateDto>> _updateValidatorMock;
+    private readonly Mock<ILogger<OperationTypeService>> _loggerMock;
     private readonly OperationTypeService _sut;
 
     public OperationTypeServiceTests()
@@ -27,6 +29,7 @@ public class OperationTypeServiceTests
         _opRepositoryMock = new Mock<IFinancialOperationRepository>();
         _createValidatorMock = new Mock<IValidator<OperationTypeCreateDto>>();
         _updateValidatorMock = new Mock<IValidator<OperationTypeUpdateDto>>();
+        _loggerMock = new Mock<ILogger<OperationTypeService>>();
 
         _unitOfWorkMock.Setup(u => u.FinancialOperationTypes).Returns(_opTypeRepositoryMock.Object);
         _unitOfWorkMock.Setup(u => u.FinancialOperations).Returns(_opRepositoryMock.Object);
@@ -34,7 +37,8 @@ public class OperationTypeServiceTests
         _sut = new OperationTypeService(
             _unitOfWorkMock.Object,
             _createValidatorMock.Object,
-            _updateValidatorMock.Object);
+            _updateValidatorMock.Object,
+            _loggerMock.Object);
     }
 
     #region Constructor Tests
@@ -43,7 +47,7 @@ public class OperationTypeServiceTests
     public void Constructor_WithNullUnitOfWork_ThrowsArgumentNullException()
     {
         // Act
-        var act = () => new OperationTypeService(null!, _createValidatorMock.Object, _updateValidatorMock.Object);
+        var act = () => new OperationTypeService(null!, _createValidatorMock.Object, _updateValidatorMock.Object, _loggerMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -54,7 +58,7 @@ public class OperationTypeServiceTests
     public void Constructor_WithNullCreateValidator_ThrowsArgumentNullException()
     {
         // Act
-        var act = () => new OperationTypeService(_unitOfWorkMock.Object, null!, _updateValidatorMock.Object);
+        var act = () => new OperationTypeService(_unitOfWorkMock.Object, null!, _updateValidatorMock.Object, _loggerMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -65,11 +69,22 @@ public class OperationTypeServiceTests
     public void Constructor_WithNullUpdateValidator_ThrowsArgumentNullException()
     {
         // Act
-        var act = () => new OperationTypeService(_unitOfWorkMock.Object, _createValidatorMock.Object, null!);
+        var act = () => new OperationTypeService(_unitOfWorkMock.Object, _createValidatorMock.Object, null!, _loggerMock.Object);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("updateValidator");
+    }
+
+    [Fact]
+    public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => new OperationTypeService(_unitOfWorkMock.Object, _createValidatorMock.Object, _updateValidatorMock.Object, null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("logger");
     }
 
     #endregion

@@ -4,6 +4,7 @@ using FinanceTracker.Application.Interfaces;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Domain.Entities;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace FinanceTracker.Application.Services;
 
@@ -11,11 +12,14 @@ public class FinancialOperationService : IFinancialOperationService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<FinancialOperationUpsertDto> _upsertValidator;
+    private readonly ILogger<FinancialOperationService> _logger;
 
-    public FinancialOperationService(IUnitOfWork unitOfWork, IValidator<FinancialOperationUpsertDto> upsertValidator)
+    public FinancialOperationService(IUnitOfWork unitOfWork, IValidator<FinancialOperationUpsertDto> upsertValidator,
+        ILogger<FinancialOperationService> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _upsertValidator = upsertValidator ?? throw new ArgumentNullException(nameof(upsertValidator));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<FinancialOperationDetailsDto> GetOperationByIdAsync(Guid id, CancellationToken ct = default)
@@ -23,6 +27,7 @@ public class FinancialOperationService : IFinancialOperationService
         var entity = await _unitOfWork.FinancialOperations.GetByIdWithTypeAsync(id, ct)
             ?? throw new NotFoundException($"Financial operation with id {id} was not found");
 
+        _logger.LogInformation("Retrieved financial operation with id {OperationId}", entity.Id);
         return new FinancialOperationDetailsDto(entity.Id, entity.TypeId, entity.Type.Name,
             entity.Type.Kind, entity.AmountBase, entity.Date, entity.Note);
     }
@@ -31,6 +36,7 @@ public class FinancialOperationService : IFinancialOperationService
     {
         var entities = await _unitOfWork.FinancialOperations.GetAllWithTypeAsync(ct);
 
+        _logger.LogInformation("Retrieved all financial operations");
         return entities.Select(e => new FinancialOperationDetailsDto(
             e.Id, e.TypeId, e.Type.Name, e.Type.Kind, e.AmountBase, e.Date, e.Note
             )).ToList();
@@ -55,6 +61,7 @@ public class FinancialOperationService : IFinancialOperationService
         await _unitOfWork.FinancialOperations.AddAsync(entity, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
+        _logger.LogInformation("Created financial operation with id {OperationId}", entity.Id);
         return entity.Id;
     }
 
@@ -75,6 +82,8 @@ public class FinancialOperationService : IFinancialOperationService
 
         _unitOfWork.FinancialOperations.Update(entity);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Updated financial operation with id {OperationId}", entity.Id);
     }
 
     public async Task SoftDeleteOperationAsync(Guid id, CancellationToken ct = default)
@@ -84,5 +93,7 @@ public class FinancialOperationService : IFinancialOperationService
 
         _unitOfWork.FinancialOperations.SoftDelete(entity);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Soft deleted financial operation with id {OperationId}", entity.Id);
     }
 }
