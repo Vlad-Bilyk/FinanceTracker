@@ -7,6 +7,7 @@ public interface IUnitOfWork
 {
     IFinancialOperationTypeRepository FinancialOperationTypes { get; }
     IFinancialOperationRepository FinancialOperations { get; }
+    IUserRepository Users { get; }
 
     /// <summary>
     /// Save all tracked changes as a single unit.

@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<FinancialOperation> FinancialOperations { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<Wallet> Wallets { get; set; }
+    public DbSet<Currency> Currencies { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     { }
@@ -45,13 +46,18 @@ public class AppDbContext : DbContext
             e.Property(x => x.Note)
              .HasMaxLength(ValidationConstants.OperationNoteMaxLength);
 
-            e.Property(x => x.CurrencyOriginal)
+            e.Property(x => x.CurrencyOriginalCode)
              .HasMaxLength(ValidationConstants.CurrencyCodeLength)
              .IsFixedLength();
 
             e.HasOne(x => x.Type)
              .WithMany(t => t.Operations)
              .HasForeignKey(x => x.TypeId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.Currency)
+             .WithMany()
+             .HasForeignKey(x => x.CurrencyOriginalCode)
              .OnDelete(DeleteBehavior.Restrict);
 
             e.HasQueryFilter(x => !x.IsDeleted);
@@ -93,6 +99,25 @@ public class AppDbContext : DbContext
              .WithOne(o => o.Wallet)
              .HasForeignKey(o => o.WalletId)
              .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.BaseCurrency)
+             .WithMany()
+             .HasForeignKey(x => x.BaseCurrencyCode)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Currency>(e =>
+        {
+            e.HasKey(x => x.Code);
+
+            e.Property(x => x.Code)
+             .HasMaxLength(ValidationConstants.CurrencyCodeLength)
+             .IsFixedLength()
+             .IsRequired();
+
+            e.Property(x => x.Name)
+             .HasMaxLength(ValidationConstants.CurrencyNameMaxLength)
+             .IsRequired();
         });
     }
 }

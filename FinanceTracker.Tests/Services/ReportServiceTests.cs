@@ -28,7 +28,7 @@ public class ReportServiceTests
     }
 
     private static FinancialOperation CreateOperation(Guid? id, Guid typeId, string typeName,
-        OperationKind kind, decimal amount, DateTimeOffset date, string? note = null)
+        OperationKind kind, decimal amount, DateTime date, string? note = null)
     {
         return new FinancialOperation
         {
@@ -72,7 +72,7 @@ public class ReportServiceTests
     public async Task CreateDailyReportAsync_WithValidData_ReturnsCorrectTotalsAndOperations()
     {
         // Arrange
-        var date = new DateTimeOffset(2025, 11, 12, 15, 15, 15, TimeSpan.Zero);
+        var date = new DateTime(2025, 11, 12);
         var dateOnly = new DateOnly(2025, 11, 12);
         var foodId = Guid.NewGuid();
         var salaryId = Guid.NewGuid();
@@ -121,9 +121,9 @@ public class ReportServiceTests
 
         var data = new List<FinancialOperation>
         {
-            CreateOperation(null, salaryId, "Salary", OperationKind.Income, 1000m, new DateTimeOffset(2025, 11, 10, 15, 15, 15, TimeSpan.Zero)),
-            CreateOperation(null, travelId, "Travel", OperationKind.Expense, 300m, new DateTimeOffset(2025, 11, 11, 15, 15, 15, TimeSpan.Zero)),
-            CreateOperation(null, travelId, "Travel", OperationKind.Expense, 200m, new DateTimeOffset(2025, 11, 12, 15, 15, 15, TimeSpan.Zero))
+            CreateOperation(null, salaryId, "Salary", OperationKind.Income, 1000m, new DateTime(2025, 11, 10, 15, 15, 15)),
+            CreateOperation(null, travelId, "Travel", OperationKind.Expense, 300m, new DateTime(2025, 11, 11, 15, 15, 15)),
+            CreateOperation(null, travelId, "Travel", OperationKind.Expense, 200m, new DateTime(2025, 11, 12, 15, 15, 15))
         };
 
         _opRepositoryMock

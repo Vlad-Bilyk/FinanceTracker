@@ -21,7 +21,7 @@ public class FinancialOperationUpsertValidator : AbstractValidator<FinancialOper
         RuleFor(x => x.Date)
             .NotEmpty()
                 .WithMessage("Operation date is required")
-            .LessThanOrEqualTo(DateTimeOffset.Now)
+            .LessThanOrEqualTo(DateTime.Now)
                 .WithMessage("Operation date cannot be in the future");
 
         RuleFor(x => x.Note)

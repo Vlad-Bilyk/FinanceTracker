@@ -12,15 +12,18 @@ public class UnitOfWork : IUnitOfWork
 
     public IFinancialOperationTypeRepository FinancialOperationTypes { get; }
     public IFinancialOperationRepository FinancialOperations { get; }
+    public IUserRepository Users { get; }
 
     public UnitOfWork(
         AppDbContext context,
         IFinancialOperationTypeRepository typeRepository,
-        IFinancialOperationRepository operationRepository)
+        IFinancialOperationRepository operationRepository,
+        IUserRepository userRepository)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         FinancialOperationTypes = typeRepository ?? throw new ArgumentNullException(nameof(typeRepository));
         FinancialOperations = operationRepository ?? throw new ArgumentNullException(nameof(operationRepository));
+        Users = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
     }
 
     /// <inheritdoc/>

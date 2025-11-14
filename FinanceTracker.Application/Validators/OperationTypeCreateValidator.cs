@@ -18,6 +18,6 @@ public class OperationTypeCreateValidator : AbstractValidator<OperationTypeCreat
                 .WithMessage($"Description cannot exceed {ValidationConstants.OperationTypeDescriptionMaxLength} characters");
 
         RuleFor(x => x.Kind)
-            .IsInEnum().WithMessage("Invalid operation kind. Allowed values: Income, Expense"); ;
+            .IsInEnum().WithMessage("Invalid operation kind. Allowed values: Income, Expense");
     }
 }
