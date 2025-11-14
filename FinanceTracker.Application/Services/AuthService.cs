@@ -32,10 +32,9 @@ public class AuthService : IAuthService
     {
         await _registerValidator.ValidateAndThrowAsync(request, ct);
 
-        var existingUser = await _unitOfWork.Users.GetByUserNameAsync(request.UserName, ct);
-        if (existingUser != null)
+        if (await _unitOfWork.Users.IsUserNameTakenAsync(null, request.UserName, ct))
         {
-            throw new ConflictException("Username already exists.");
+            throw new ConflictException($"UserName '{request.UserName}' is already taken");
         }
 
         var passwordHash = _passwordHasher.HashPassword(request.Password);

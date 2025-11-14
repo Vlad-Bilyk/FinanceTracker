@@ -13,4 +13,6 @@ public static class ValidationConstants
 
     public const int CurrencyCodeLength = 3;
     public const int CurrencyNameMaxLength = 50;
+
+    public const int PasswordMinLength = 6;
 }

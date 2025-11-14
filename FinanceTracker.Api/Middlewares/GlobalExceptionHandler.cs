@@ -19,19 +19,25 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
     {
         var statusCode = exception switch
         {
+            UnauthorizedException => StatusCodes.Status401Unauthorized,
             NotFoundException => StatusCodes.Status404NotFound,
             ConflictException => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status500InternalServerError
         };
 
+        httpContext.Response.StatusCode = statusCode;
+
         if (statusCode == StatusCodes.Status500InternalServerError)
         {
             _logger.LogError(
                 exception,
-                "Server error | Type: {ExceptionType} | Path: {Method} {Path}",
+                "Server error | Type: {ExceptionType} | " +
+                "Path: {Method} {Path} | Message: {Message} | Source: {Source}",
                 exception.GetType().Name,
                 httpContext.Request.Method,
-                httpContext.Request.Path);
+                httpContext.Request.Path,
+                exception.Message,
+                exception.Source);
 
             if (exception.InnerException != null)
             {
@@ -44,21 +50,33 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         else
         {
             _logger.LogDebug(
+                exception,
                 "Client error | Type: {ExceptionType} | Status: {StatusCode}",
                 exception.GetType().Name,
                 statusCode);
         }
 
-        return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        var context = new ProblemDetailsContext
         {
             HttpContext = httpContext,
             Exception = exception,
             ProblemDetails = new ProblemDetails
             {
+                Status = statusCode,
                 Type = exception.GetType().Name,
                 Title = "An error occured",
                 Detail = exception.Message
             }
-        });
+        };
+
+        var wrote = await _problemDetailsService.TryWriteAsync(context);
+
+        if (!wrote && !httpContext.Response.HasStarted)
+        {
+            httpContext.Response.ContentType = "application/problem+json";
+            await httpContext.Response.WriteAsJsonAsync(context.ProblemDetails, cancellationToken);
+        }
+
+        return true;
     }
 }

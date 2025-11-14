@@ -1,6 +1,9 @@
 using FinanceTracker.Api.Middlewares;
+using FinanceTracker.Api.Services;
 using FinanceTracker.Application.DTOs;
 using FinanceTracker.Application.DTOs.Auth;
+using FinanceTracker.Application.DTOs.User;
+using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Application.Services;
@@ -21,7 +24,7 @@ using System.Text.Json.Serialization;
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
+    .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware", LogEventLevel.Fatal)
@@ -60,6 +63,7 @@ try
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
     // Services
+    builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
     builder.Services.AddScoped<IFinancialOperationService, FinancialOperationService>();
     builder.Services.AddScoped<IReportService, ReportService>();
@@ -67,12 +71,17 @@ try
     builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
     builder.Services.AddScoped<ITokenService, TokenService>();
 
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IUserContext, UserContext>();
+
     // Validators
     builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
     builder.Services.AddScoped<IValidator<OperationTypeUpdateDto>, OperationTypeUpdateValidator>();
     builder.Services.AddScoped<IValidator<FinancialOperationUpsertDto>, FinancialOperationUpsertValidator>();
     builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
     builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
+    builder.Services.AddScoped<IValidator<UserUpdateDto>, UserUpdateValidator>();
+    builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
 
     // JWT Authentication
     var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -155,6 +164,7 @@ try
         {
             c.SwaggerEndpoint("/swagger/v1/swagger.json", "Finance Tracker API v1");
             c.RoutePrefix = "swagger";
+            c.ConfigObject.PersistAuthorization = true;
         });
     }
 

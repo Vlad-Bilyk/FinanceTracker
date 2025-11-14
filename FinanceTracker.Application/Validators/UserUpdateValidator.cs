@@ -1,19 +1,16 @@
 ﻿using FinanceTracker.Application.Common;
-using FinanceTracker.Application.DTOs.Auth;
+using FinanceTracker.Application.DTOs.User;
 using FluentValidation;
 
 namespace FinanceTracker.Application.Validators;
 
-public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
+public class UserUpdateValidator : AbstractValidator<UserUpdateDto>
 {
-    public RegisterRequestValidator()
+    public UserUpdateValidator()
     {
         RuleFor(x => x.UserName)
             .NotEmpty().WithMessage("Username is required")
             .MaximumLength(ValidationConstants.UserNameMaxLength)
                 .WithMessage($"Username cannot exceed {ValidationConstants.UserNameMaxLength} characters\"");
-
-        RuleFor(x => x.Password)
-            .SetValidator(new PasswordValidator());
     }
 }
