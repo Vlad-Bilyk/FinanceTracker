@@ -1,5 +1,5 @@
 ﻿using FinanceTracker.Application.DTOs;
-using FinanceTracker.Application.Interfaces;
+using FinanceTracker.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceTracker.Api.Controllers;
@@ -36,7 +36,7 @@ public class OperationTypesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> CreateType([FromBody] OperationTypeCreateDto createDto, CancellationToken ct)
+    public async Task<IActionResult> CreateType(OperationTypeCreateDto createDto, CancellationToken ct)
     {
         var id = await _operationTypeService.CreateTypeAsync(createDto, ct);
         return CreatedAtAction(nameof(GetTypeById), new { id }, new { id });
@@ -47,7 +47,7 @@ public class OperationTypesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UpdateType(Guid id, [FromBody] OperationTypeUpdateDto updateDto, CancellationToken ct)
+    public async Task<IActionResult> UpdateType(Guid id, OperationTypeUpdateDto updateDto, CancellationToken ct)
     {
         await _operationTypeService.UpdateTypeAsync(id, updateDto, ct);
         return NoContent();

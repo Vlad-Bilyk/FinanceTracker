@@ -8,6 +8,6 @@ public record FinancialOperationDetailsDto(
     string TypeName,
     OperationKind Kind,
     decimal Amount,
-    DateTimeOffset Date,
+    DateTime Date,
     string? Note
 );

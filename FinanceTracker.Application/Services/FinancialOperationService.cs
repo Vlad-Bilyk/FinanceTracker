@@ -1,7 +1,7 @@
 ﻿using FinanceTracker.Application.DTOs;
 using FinanceTracker.Application.Exceptions;
-using FinanceTracker.Application.Interfaces;
 using FinanceTracker.Application.Interfaces.Repositories;
+using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Domain.Entities;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -27,7 +27,6 @@ public class FinancialOperationService : IFinancialOperationService
         var entity = await _unitOfWork.FinancialOperations.GetByIdWithTypeAsync(id, ct)
             ?? throw new NotFoundException($"Financial operation with id {id} was not found");
 
-        _logger.LogInformation("Retrieved financial operation with id {OperationId}", entity.Id);
         return new FinancialOperationDetailsDto(entity.Id, entity.TypeId, entity.Type.Name,
             entity.Type.Kind, entity.AmountBase, entity.Date, entity.Note);
     }
@@ -36,7 +35,6 @@ public class FinancialOperationService : IFinancialOperationService
     {
         var entities = await _unitOfWork.FinancialOperations.GetAllWithTypeAsync(ct);
 
-        _logger.LogInformation("Retrieved all financial operations");
         return entities.Select(e => new FinancialOperationDetailsDto(
             e.Id, e.TypeId, e.Type.Name, e.Type.Kind, e.AmountBase, e.Date, e.Note
             )).ToList();

@@ -1,6 +1,6 @@
 ﻿using FinanceTracker.Application.DTOs;
-using FinanceTracker.Application.Interfaces;
 using FinanceTracker.Application.Interfaces.Repositories;
+using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Domain.Entities;
 using FinanceTracker.Domain.Enums;
 using FluentValidation;

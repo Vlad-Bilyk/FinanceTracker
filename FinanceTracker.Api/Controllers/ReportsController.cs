@@ -1,5 +1,5 @@
 ﻿using FinanceTracker.Application.DTOs;
-using FinanceTracker.Application.Interfaces;
+using FinanceTracker.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceTracker.Api.Controllers;

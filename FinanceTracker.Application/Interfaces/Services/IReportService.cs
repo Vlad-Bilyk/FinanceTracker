@@ -1,6 +1,6 @@
 ﻿using FinanceTracker.Application.DTOs;
 
-namespace FinanceTracker.Application.Interfaces;
+namespace FinanceTracker.Application.Interfaces.Services;
 
 public interface IReportService
 {
