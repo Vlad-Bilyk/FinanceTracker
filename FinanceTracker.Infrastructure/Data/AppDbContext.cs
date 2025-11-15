@@ -31,7 +31,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Kind)
              .HasConversion<string>();
 
-            e.HasIndex(x => new { x.Kind, x.Name })
+            e.HasIndex(x => new { x.UserId, x.Kind, x.Name })
              .IsUnique();
         });
 
@@ -42,6 +42,13 @@ public class AppDbContext : DbContext
 
             e.Property(x => x.AmountBase)
              .HasPrecision(18, 2);
+
+            e.Property(x => x.AmountOriginal)
+            .HasPrecision(18, 2);
+
+            e.Property(x => x.Date)
+             .HasColumnType("timestamp")
+             .IsRequired();
 
             e.Property(x => x.Note)
              .HasMaxLength(ValidationConstants.OperationNoteMaxLength);
