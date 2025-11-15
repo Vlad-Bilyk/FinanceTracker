@@ -23,7 +23,8 @@ public class TokenService : ITokenService
         var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key not configured");
         var issuer = jwtSettings["Issuer"];
         var audience = jwtSettings["Audience"];
-        var expirationHours = double.Parse(jwtSettings["ExpirationHours"] ?? "0");
+        var expirationHours = double.Parse(jwtSettings["ExpirationHours"]
+            ?? throw new InvalidOperationException("JWT expiration Hours not configured"));
 
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
