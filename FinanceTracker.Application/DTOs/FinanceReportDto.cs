@@ -1,7 +1,12 @@
-﻿namespace FinanceTracker.Application.DTOs;
+﻿using FinanceTracker.Application.DTOs.Operation;
 
-public class FinanceReport
+namespace FinanceTracker.Application.DTOs;
+
+public class FinanceReportDto
 {
+    public Guid WalletId { get; init; }
+    public string WalletName { get; init; } = string.Empty;
+    public string CurrencyCode { get; init; } = string.Empty;
     public DateOnly Start { get; init; }
     public DateOnly End { get; init; }
     public decimal TotalIncome { get; init; }

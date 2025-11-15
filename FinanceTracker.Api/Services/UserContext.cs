@@ -30,5 +30,11 @@ public class UserContext : IUserContext
             return Guid.TryParse(id, out var userId) ? userId : null;
         }
     }
+
+    /// <inheritdoc/>
+    public Guid GetRequiredUserId()
+    {
+        return UserId ?? throw new UnauthorizedAccessException("User is not authenticated");
+    }
 }
 

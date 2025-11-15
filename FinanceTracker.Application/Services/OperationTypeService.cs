@@ -1,8 +1,10 @@
-﻿using FinanceTracker.Application.DTOs;
+﻿using FinanceTracker.Application.DTOs.OperationType;
 using FinanceTracker.Application.Exceptions;
+using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Domain.Entities;
+using FinanceTracker.Domain.Enums;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
@@ -11,14 +13,17 @@ namespace FinanceTracker.Application.Services;
 public class OperationTypeService : IOperationTypeService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserContext _userContext;
     private readonly IValidator<OperationTypeCreateDto> _createValidator;
     private readonly IValidator<OperationTypeUpdateDto> _updateValidator;
     private readonly ILogger<OperationTypeService> _logger;
 
     public OperationTypeService(IUnitOfWork unitOfWork, IValidator<OperationTypeCreateDto> createValidator,
-        IValidator<OperationTypeUpdateDto> updateValidator, ILogger<OperationTypeService> logger)
+        IUserContext userContext, IValidator<OperationTypeUpdateDto> updateValidator,
+        ILogger<OperationTypeService> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _createValidator = createValidator ?? throw new ArgumentNullException(nameof(createValidator));
         _updateValidator = updateValidator ?? throw new ArgumentNullException(nameof(updateValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -26,15 +31,14 @@ public class OperationTypeService : IOperationTypeService
 
     public async Task<OperationTypeDto> GetTypeByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException($"Financial operation type with id {id} not found");
-
+        var entity = await GetValidTypeAsync(id, ct);
         return new OperationTypeDto(entity.Id, entity.Name, entity.Description, entity.Kind);
     }
 
-    public async Task<IReadOnlyList<OperationTypeDto>> GetAllTypesAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<OperationTypeDto>> GetUserTypesAsync(CancellationToken ct = default)
     {
-        var entities = await _unitOfWork.FinancialOperationTypes.GetAllAsync(ct);
+        var userId = GetCurrentUserId();
+        var entities = await _unitOfWork.FinancialOperationTypes.GetUserTypesAsync(userId, ct);
 
         return entities.Select(e => new OperationTypeDto(e.Id, e.Name, e.Description, e.Kind)).ToList();
     }
@@ -43,16 +47,12 @@ public class OperationTypeService : IOperationTypeService
     {
         await _createValidator.ValidateAndThrowAsync(createDto, ct);
 
-        var exists = await _unitOfWork.FinancialOperationTypes
-            .ExistsByNameKindAsync(excludeId: null, createDto.Name, createDto.Kind, ct);
-        if (exists)
-        {
-            throw new ConflictException("Operation type with the same Name and Kind already exists.");
-        }
+        await ValidateUniqueNameAsync(createDto.Name, createDto.Kind, null, ct);
 
         var entity = new FinancialOperationType
         {
             Id = Guid.NewGuid(),
+            UserId = _userContext.GetRequiredUserId(),
             Name = createDto.Name.Trim(),
             Description = createDto.Description,
             Kind = createDto.Kind,
@@ -60,7 +60,6 @@ public class OperationTypeService : IOperationTypeService
 
         await _unitOfWork.FinancialOperationTypes.AddAsync(entity, ct);
         await _unitOfWork.SaveChangesAsync(ct);
-
 
         _logger.LogInformation("Created financial operation type with id {OperationTypeId}", entity.Id);
         return entity.Id;
@@ -70,26 +69,14 @@ public class OperationTypeService : IOperationTypeService
     {
         await _updateValidator.ValidateAndThrowAsync(updateDto, ct);
 
-        var entity = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException($"Financial operation type with id {id} not found");
+        var type = await GetValidTypeAsync(id, ct);
 
-        var newName = updateDto.Name.Trim();
+        await ValidateUniqueNameAsync(updateDto.Name, type.Kind, id, ct);
 
-        if (!newName.Equals(entity.Name, StringComparison.Ordinal))
-        {
-            var exists = await _unitOfWork.FinancialOperationTypes
-                .ExistsByNameKindAsync(excludeId: id, newName, entity.Kind, ct);
-            if (exists)
-            {
-                throw new ConflictException("Operation type with the same Name and Kind already exists.");
-            }
+        type.Name = updateDto.Name.Trim();
+        type.Description = updateDto.Description;
 
-            entity.Name = newName;
-        }
-
-        entity.Description = updateDto.Description;
-
-        _unitOfWork.FinancialOperationTypes.Update(entity);
+        _unitOfWork.FinancialOperationTypes.Update(type);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Updated financial operation type with id {OperationTypeId}", id);
@@ -97,19 +84,41 @@ public class OperationTypeService : IOperationTypeService
 
     public async Task DeleteTypeAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = await _unitOfWork.FinancialOperationTypes.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException($"Financial operation type with id {id} not found");
+        var type = await GetValidTypeAsync(id, ct);
 
         var isUsed = await _unitOfWork.FinancialOperations.AnyByTypeIdAsync(id, ct);
-
         if (isUsed)
         {
             throw new ConflictException("Cannot delete operation type because it is used in existing operations.");
         }
 
-        _unitOfWork.FinancialOperationTypes.Delete(entity);
+        _unitOfWork.FinancialOperationTypes.Delete(type);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Deleted financial operation type with id {OperationTypeId}", id);
+    }
+
+    private async Task<FinancialOperationType> GetValidTypeAsync(Guid id, CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var type = await _unitOfWork.FinancialOperationTypes.GetByIdForUserAsync(userId, id, ct)
+            ?? throw new NotFoundException($"Financial operation type with id {id} not found");
+        return type;
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        return _userContext.GetRequiredUserId();
+    }
+
+    private async Task ValidateUniqueNameAsync(string name, OperationKind kind, Guid? excludeTypeId, CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var exists = await _unitOfWork.FinancialOperationTypes
+            .ExistsByNameKindAsync(userId, name, kind, excludeTypeId, ct);
+        if (exists)
+        {
+            throw new ConflictException("Operation type with the same Name and Kind already exists.");
+        }
     }
 }

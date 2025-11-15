@@ -13,17 +13,23 @@ public class UnitOfWork : IUnitOfWork
     public IFinancialOperationTypeRepository FinancialOperationTypes { get; }
     public IFinancialOperationRepository FinancialOperations { get; }
     public IUserRepository Users { get; }
+    public IWalletRepository Wallets { get; }
+    public ICurrencyRepository Currencies { get; }
 
     public UnitOfWork(
         AppDbContext context,
         IFinancialOperationTypeRepository typeRepository,
         IFinancialOperationRepository operationRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IWalletRepository walletRepository,
+        ICurrencyRepository currencyRepository)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         FinancialOperationTypes = typeRepository ?? throw new ArgumentNullException(nameof(typeRepository));
         FinancialOperations = operationRepository ?? throw new ArgumentNullException(nameof(operationRepository));
         Users = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+        Wallets = walletRepository ?? throw new ArgumentNullException(nameof(walletRepository));
+        Currencies = currencyRepository ?? throw new ArgumentNullException(nameof(currencyRepository));
     }
 
     /// <inheritdoc/>

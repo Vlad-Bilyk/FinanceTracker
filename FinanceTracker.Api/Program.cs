@@ -1,14 +1,18 @@
 using FinanceTracker.Api.Middlewares;
 using FinanceTracker.Api.Services;
-using FinanceTracker.Application.DTOs;
 using FinanceTracker.Application.DTOs.Auth;
+using FinanceTracker.Application.DTOs.Operation;
+using FinanceTracker.Application.DTOs.OperationType;
 using FinanceTracker.Application.DTOs.User;
+using FinanceTracker.Application.DTOs.Wallet;
+using FinanceTracker.Application.Interfaces;
 using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Application.Services;
 using FinanceTracker.Application.Validators;
 using FinanceTracker.Infrastructure.Data;
+using FinanceTracker.Infrastructure.Data.Seed;
 using FinanceTracker.Infrastructure.Repositories;
 using FinanceTracker.Infrastructure.Services;
 using FluentValidation;
@@ -56,23 +60,30 @@ try
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultDbConnection")));
 
+    builder.Services.AddTransient<IDbSeeder, DbSeeder>();
+
+    // User context
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IUserContext, UserContext>();
+
     // Repositories
     builder.Services.AddScoped<IFinancialOperationTypeRepository, FinancialOperationTypeRepository>();
     builder.Services.AddScoped<IFinancialOperationRepository, FinancialOperationRepository>();
     builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IWalletRepository, WalletRepository>();
+    builder.Services.AddScoped<ICurrencyRepository, CurrencyRepository>();
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
     // Services
     builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IWalletService, WalletService>();
     builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
     builder.Services.AddScoped<IFinancialOperationService, FinancialOperationService>();
     builder.Services.AddScoped<IReportService, ReportService>();
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
     builder.Services.AddScoped<ITokenService, TokenService>();
-
-    builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<IUserContext, UserContext>();
+    builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 
     // Validators
     builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
@@ -82,6 +93,8 @@ try
     builder.Services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();
     builder.Services.AddScoped<IValidator<UserUpdateDto>, UserUpdateValidator>();
     builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
+    builder.Services.AddScoped<IValidator<WalletCreateDto>, WalletCreateValidator>();
+    builder.Services.AddScoped<IValidator<WalletUpdateDto>, WalletUpdateValidator>();
 
     // JWT Authentication
     var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -153,10 +166,19 @@ try
 
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
-    app.UseMiddleware<RequestResponseLoggingMiddleware>();
-    app.UseExceptionHandler();
+    // Apply migrations and seed the database
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
 
+        var seeder = scope.ServiceProvider.GetService<IDbSeeder>();
+        await seeder!.SeedAsync();
+
+        Log.Information("Apply migrations and seed database with initial data");
+    }
+
+    // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -172,6 +194,9 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.UseMiddleware<RequestResponseLoggingMiddleware>();
+    app.UseExceptionHandler();
 
     app.MapControllers();
 

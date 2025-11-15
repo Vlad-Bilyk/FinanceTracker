@@ -5,10 +5,10 @@ namespace FinanceTracker.Application.Interfaces.Repositories;
 
 public interface IFinancialOperationTypeRepository
 {
-    Task<FinancialOperationType?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<IReadOnlyList<FinancialOperationType>> GetAllAsync(CancellationToken ct = default);
+    Task<FinancialOperationType?> GetByIdForUserAsync(Guid userId, Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<FinancialOperationType>> GetUserTypesAsync(Guid userId, CancellationToken ct = default);
     Task AddAsync(FinancialOperationType entity, CancellationToken ct = default);
-    Task<bool> ExistsByNameKindAsync(Guid? excludeId, string name, OperationKind kind, CancellationToken ct);
+    Task<bool> ExistsByNameKindAsync(Guid userId, string name, OperationKind kind, Guid? excludeTypeId, CancellationToken ct);
     void Update(FinancialOperationType entity);
     void Delete(FinancialOperationType entity);
 }

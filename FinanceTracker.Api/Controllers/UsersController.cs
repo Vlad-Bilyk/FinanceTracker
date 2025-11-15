@@ -9,6 +9,7 @@ namespace FinanceTracker.Api.Controllers;
 /// Manages user accounts.
 /// </summary>
 [Route("api/users")]
+[Authorize]
 [ApiController]
 public class UsersController : ControllerBase
 {
@@ -32,6 +33,7 @@ public class UsersController : ControllerBase
     /// <returns>Returns the user if found.</returns>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
     {
@@ -46,6 +48,7 @@ public class UsersController : ControllerBase
     /// <returns>Returns the list of users.</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<UserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetUsers(CancellationToken ct)
     {
         var users = await _userService.GetAllUsersAsync(ct);
@@ -62,7 +65,9 @@ public class UsersController : ControllerBase
     [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateUser(Guid id, UserUpdateDto updateDto, CancellationToken ct)
     {
         await _userService.UpdateUserAsync(id, updateDto, ct);
@@ -77,6 +82,7 @@ public class UsersController : ControllerBase
     /// <returns>Returns 204 No Content on success.</returns>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
     {
@@ -91,7 +97,6 @@ public class UsersController : ControllerBase
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Returns 204 No Content if the password was changed successfully.</returns>
     [HttpPut("me/change-password")]
-    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

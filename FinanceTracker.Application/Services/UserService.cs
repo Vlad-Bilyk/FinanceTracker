@@ -75,8 +75,7 @@ public class UserService : IUserService
 
     public async Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
     {
-        var userId = _userContext.UserId
-            ?? throw new UnauthorizedException("User is not authenticated");
+        var userId = _userContext.GetRequiredUserId();
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId, ct)
             ?? throw new NotFoundException("User not found");

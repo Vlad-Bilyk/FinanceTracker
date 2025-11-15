@@ -14,9 +14,10 @@ public class WalletRepository : IWalletRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<Wallet?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<Wallet?> GetByIdForUserAsync(Guid userId, Guid id, CancellationToken ct = default)
     {
-        return await _context.Wallets.FindAsync([id], ct);
+        return await _context.Wallets
+            .FirstOrDefaultAsync(w => w.Id == id && w.UserId == userId, ct);
     }
 
     public async Task<IReadOnlyList<Wallet>> GetUserWalletsAsync(Guid userId, CancellationToken ct = default)
@@ -25,6 +26,22 @@ public class WalletRepository : IWalletRepository
             .AsNoTracking()
             .Where(w => w.UserId == userId)
             .ToListAsync(ct);
+    }
+
+    public Task<bool> ExistsByNameAsync(Guid userId, string name, Guid? excludeWalletId, CancellationToken ct)
+    {
+        var normalizedName = name.Trim();
+
+        var query = _context.Wallets
+            .Where(w => w.UserId == userId
+                     && w.Name == normalizedName);
+
+        if (excludeWalletId.HasValue)
+        {
+            query = query.Where(w => w.Id != excludeWalletId.Value);
+        }
+
+        return query.AnyAsync(ct);
     }
 
     public async Task AddAsync(Wallet entity, CancellationToken ct = default)

@@ -13,4 +13,10 @@ public interface IUserContext
     /// or <c>null</c> if the user is not authenticated or the claim is missing/invalid.
     /// </returns>
     Guid? UserId { get; }
+
+    /// <summary>
+    /// Retrieves the unique identifier of the current user.
+    /// </summary>
+    /// <returns>A <see cref="Guid"/> representing the unique identifier of the current user.</returns>
+    Guid GetRequiredUserId();
 }

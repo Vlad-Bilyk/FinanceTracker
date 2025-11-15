@@ -14,36 +14,41 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<FinancialOperation?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<FinancialOperation?> GetByIdAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
-        return await _context.FinancialOperations.FindAsync([id], ct);
+        return await _context.FinancialOperations
+            .FirstOrDefaultAsync(x => x.Id == id && x.WalletId == walletId, ct);
     }
 
-    public async Task<FinancialOperation?> GetByIdWithTypeAsync(Guid id, CancellationToken ct = default)
+    public async Task<FinancialOperation?> GetByIdWithDetailsAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
         return await _context.FinancialOperations
             .AsNoTracking()
             .Include(x => x.Type)
+            .Include(x => x.Wallet)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<FinancialOperation>> GetAllWithTypeAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<FinancialOperation>> GetWalletOperationsAsync(Guid walletId, CancellationToken ct = default)
     {
         return await _context.FinancialOperations
             .AsNoTracking()
             .Include(x => x.Type)
+            .Include(x => x.Wallet)
             .OrderBy(x => x.Date)
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(DateOnly date, CancellationToken ct = default)
+    public async Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(
+        Guid walletId, DateOnly date, CancellationToken ct = default)
     {
-        return await GetOperationsInRangeAsync(date, date, ct);
+        return await GetOperationsInRangeAsync(walletId, date, date, ct);
     }
 
-    public async Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(DateOnly start, DateOnly end, CancellationToken ct = default)
+    public async Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(
+        Guid walletId, DateOnly start, DateOnly end, CancellationToken ct = default)
     {
-        return await GetOperationsInRangeAsync(start, end, ct);
+        return await GetOperationsInRangeAsync(walletId, start, end, ct);
     }
 
     public async Task AddAsync(FinancialOperation entity, CancellationToken ct = default)
@@ -69,21 +74,23 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         _context.FinancialOperations.Update(entity);
     }
 
-    private async Task<IReadOnlyList<FinancialOperation>> GetOperationsInRangeAsync(DateOnly from, DateOnly to, CancellationToken ct)
+    private async Task<IReadOnlyList<FinancialOperation>> GetOperationsInRangeAsync(
+        Guid walletId, DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcDateTimeOffset(from);
-        var end = ToUtcDateTimeOffset(to.AddDays(1));
+        var start = ToDateTime(from);
+        var end = ToDateTime(to.AddDays(1));
 
         return await _context.FinancialOperations
             .AsNoTracking()
             .Include(x => x.Type)
-            .Where(x => x.Date >= start && x.Date < end)
+            .Include(x => x.Wallet)
+            .Where(x => x.WalletId == walletId && (x.Date >= start && x.Date < end))
             .OrderBy(x => x.Date)
             .ToListAsync(ct);
     }
 
-    private static DateTimeOffset ToUtcDateTimeOffset(DateOnly date)
+    private static DateTime ToDateTime(DateOnly date)
     {
-        return new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        return date.ToDateTime(TimeOnly.MinValue);
     }
 }

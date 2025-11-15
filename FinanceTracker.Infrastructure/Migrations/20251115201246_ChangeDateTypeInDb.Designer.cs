@@ -3,6 +3,7 @@ using System;
 using FinanceTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinanceTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251115201246_ChangeDateTypeInDb")]
+    partial class ChangeDateTypeInDb
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,7 +113,9 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Kind", "Name")
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Kind", "Name")
                         .IsUnique();
 
                     b.ToTable("FinancialOperationTypes");

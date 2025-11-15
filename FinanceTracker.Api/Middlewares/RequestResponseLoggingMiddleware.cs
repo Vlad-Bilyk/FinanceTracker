@@ -1,4 +1,5 @@
-﻿using Serilog.Context;
+﻿using FinanceTracker.Application.Interfaces.Common;
+using Serilog.Context;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -17,7 +18,7 @@ internal sealed class RequestResponseLoggingMiddleware
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IUserContext userContext)
     {
         if (ShouldSkipLogging(context))
         {
@@ -26,7 +27,7 @@ internal sealed class RequestResponseLoggingMiddleware
         }
 
         var correlationId = GetOrCreateCorrelationId(context);
-        var userId = GetUserId(context);
+        var userId = GetUserId(userContext);
         var stopwatch = Stopwatch.StartNew();
 
         using (LogContext.PushProperty("CorrelationId", correlationId))
@@ -74,10 +75,12 @@ internal sealed class RequestResponseLoggingMiddleware
 
         _logger.LogInformation(
            "HTTP Request: {Method} {Path} {QueryString} | " +
+           "ContentType: {ContentType} | " +
            "Body: {RequestBody}",
            request.Method,
-           request.Path,
+           request.Path.Value,
            request.QueryString.HasValue ? request.QueryString.Value : "",
+           request.ContentType,
            sanitizedBody);
     }
 
@@ -172,12 +175,9 @@ internal sealed class RequestResponseLoggingMiddleware
         return newCorrelationId;
     }
 
-    private static string? GetUserId(HttpContext context)
+    private static string GetUserId(IUserContext userContext)
     {
-        return context.User?.FindFirst("sub")?.Value
-            ?? context.User?.FindFirst("userId")?.Value
-            ?? context.User?.Identity?.Name
-            ?? "Anonymous";
+        return userContext.UserId?.ToString() ?? "Anonymous";
     }
 
     private static bool ShouldSkipLogging(HttpContext context)

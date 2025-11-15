@@ -1,5 +1,5 @@
 ﻿using FinanceTracker.Application.Common;
-using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.DTOs.Operation;
 using FluentValidation;
 
 namespace FinanceTracker.Application.Validators;
@@ -12,11 +12,16 @@ public class FinancialOperationUpsertValidator : AbstractValidator<FinancialOper
             .NotEmpty()
                 .WithMessage("Operation type is required");
 
-        RuleFor(x => x.Amount)
+        RuleFor(x => x.AmountOriginal)
             .GreaterThan(0)
                 .WithMessage("Amount must be greater than 0")
             .PrecisionScale(18, 2, false)
                 .WithMessage("Amount can have maximum 2 decimal places and cannot exceed 18 digits in total");
+
+        RuleFor(x => x.CurrencyOriginalCode)
+            .SetValidator(new CurrencyCodeValidator())
+            .When(x => !string.IsNullOrEmpty(x.CurrencyOriginalCode));
+
 
         RuleFor(x => x.Date)
             .NotEmpty()
