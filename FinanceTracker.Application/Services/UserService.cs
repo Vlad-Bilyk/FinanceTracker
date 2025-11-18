@@ -68,7 +68,7 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"User with id {id} was not found");
 
-        _unitOfWork.Users.Delete(user);
+        _unitOfWork.Users.SoftDelete(user);
         await _unitOfWork.SaveChangesAsync(ct);
         _logger.LogInformation("User with id {UserId} deleted", id);
     }

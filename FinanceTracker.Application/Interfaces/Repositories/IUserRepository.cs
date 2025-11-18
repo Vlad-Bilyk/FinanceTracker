@@ -10,5 +10,5 @@ public interface IUserRepository
     Task AddAsync(User entity, CancellationToken ct = default);
     Task<bool> IsUserNameTakenAsync(Guid? excludeId, string userName, CancellationToken ct = default);
     void Update(User entity);
-    void Delete(User entity);
+    void SoftDelete(User entity);
 }

@@ -81,6 +81,8 @@ public class AppDbContext : DbContext
 
             e.HasIndex(x => x.UserName)
              .IsUnique();
+
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<Wallet>(e =>
@@ -111,6 +113,8 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(x => x.BaseCurrencyCode)
              .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<Currency>(e =>

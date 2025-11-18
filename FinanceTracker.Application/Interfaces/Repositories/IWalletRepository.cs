@@ -9,5 +9,5 @@ public interface IWalletRepository
     Task<bool> ExistsByNameAsync(Guid userId, string name, Guid? excludeWalletId, CancellationToken ct);
     Task AddAsync(Wallet entity, CancellationToken ct = default);
     void Update(Wallet entity);
-    void Delete(Wallet entity);
+    void SoftDelete(Wallet entity);
 }

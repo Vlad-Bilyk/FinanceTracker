@@ -46,8 +46,9 @@ public class UserRepository : IUserRepository
         _context.Users.Update(entity);
     }
 
-    public void Delete(User entity)
+    public void SoftDelete(User entity)
     {
-        _context.Users.Remove(entity);
+        entity.IsDeleted = true;
+        _context.Update(entity);
     }
 }

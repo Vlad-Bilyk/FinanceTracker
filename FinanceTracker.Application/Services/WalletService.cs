@@ -86,7 +86,7 @@ public class WalletService : IWalletService
     {
         var wallet = await GetValidWalletAsync(id, ct);
 
-        _unitOfWork.Wallets.Delete(wallet);
+        _unitOfWork.Wallets.SoftDelete(wallet);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Wallet with id {WalletId} was deleted", wallet.Id);

@@ -54,8 +54,9 @@ public class WalletRepository : IWalletRepository
         _context.Wallets.Update(entity);
     }
 
-    public void Delete(Wallet entity)
+    public void SoftDelete(Wallet entity)
     {
-        _context.Wallets.Remove(entity);
+        entity.IsDeleted = true;
+        _context.Wallets.Update(entity);
     }
 }

@@ -23,7 +23,6 @@ public class FinancialOperationRepository : IFinancialOperationRepository
     public async Task<FinancialOperation?> GetByIdWithDetailsAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
         return await _context.FinancialOperations
-            .AsNoTracking()
             .Include(x => x.Type)
             .Include(x => x.Wallet)
             .FirstOrDefaultAsync(x => x.Id == id, ct);

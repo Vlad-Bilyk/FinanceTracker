@@ -91,7 +91,7 @@ public class WalletsController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes a wallet
+    /// Deletes a wallet (soft delete)
     /// </summary>
     /// <param name="id">Wallet identifier.</param>
     /// <param name="ct">Cancellation token.</param>

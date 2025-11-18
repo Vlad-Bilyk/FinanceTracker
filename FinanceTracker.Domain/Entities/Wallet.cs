@@ -10,6 +10,7 @@ public class Wallet
     /// Wallet base currency ISO-4217 code (e.g., "USD").
     /// </summary>
     public string BaseCurrencyCode { get; set; } = string.Empty;
+    public bool IsDeleted { get; set; }
 
     public User User { get; set; } = null!;
     public Currency BaseCurrency { get; set; } = null!;

@@ -75,7 +75,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes a user.
+    /// Deletes a user (soft delete).
     /// </summary>
     /// <param name="id">User identifier.</param>
     /// <param name="ct">Cancellation token.</param>
