@@ -12,6 +12,6 @@ public class WalletUpdateValidator : AbstractValidator<WalletUpdateDto>
             .NotEmpty()
                 .WithMessage("Wallet name is required.")
             .MaximumLength(ValidationConstants.WalletNameMaxLength)
-                .WithMessage("Wallet name must not exceed 100 characters.");
+                .WithMessage($"Wallet name must not exceed {ValidationConstants.WalletNameMaxLength} characters.");
     }
 }

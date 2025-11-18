@@ -12,11 +12,4 @@ public interface ITokenService
     /// <param name="username">The username of the user.</param>
     /// <returns>A JWT token string that can be used for authentication.</returns>
     string GenerateToken(Guid userId, string username);
-
-    /// <summary>
-    /// Validates a JWT token and extracts the user ID from it.
-    /// </summary>
-    /// <param name="token">The JWT token string to validate.</param>
-    /// <returns>The user ID if the token is valid; otherwise, null.</returns>
-    Guid? ValidateToken(string token);
 }

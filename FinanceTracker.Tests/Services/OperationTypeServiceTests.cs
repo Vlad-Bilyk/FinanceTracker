@@ -1,5 +1,6 @@
-﻿using FinanceTracker.Application.DTOs;
+﻿using FinanceTracker.Application.DTOs.OperationType;
 using FinanceTracker.Application.Exceptions;
+using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Application.Services;
 using FinanceTracker.Domain.Entities;
@@ -19,8 +20,11 @@ public class OperationTypeServiceTests
     private readonly Mock<IFinancialOperationRepository> _opRepositoryMock;
     private readonly Mock<IValidator<OperationTypeCreateDto>> _createValidatorMock;
     private readonly Mock<IValidator<OperationTypeUpdateDto>> _updateValidatorMock;
+    private readonly Mock<IUserContext> _userContextMock;
     private readonly Mock<ILogger<OperationTypeService>> _loggerMock;
     private readonly OperationTypeService _sut;
+
+    private readonly Guid _defaultUserId = Guid.NewGuid();
 
     public OperationTypeServiceTests()
     {
@@ -29,62 +33,82 @@ public class OperationTypeServiceTests
         _opRepositoryMock = new Mock<IFinancialOperationRepository>();
         _createValidatorMock = new Mock<IValidator<OperationTypeCreateDto>>();
         _updateValidatorMock = new Mock<IValidator<OperationTypeUpdateDto>>();
+        _userContextMock = new Mock<IUserContext>();
         _loggerMock = new Mock<ILogger<OperationTypeService>>();
 
         _unitOfWorkMock.Setup(u => u.FinancialOperationTypes).Returns(_opTypeRepositoryMock.Object);
         _unitOfWorkMock.Setup(u => u.FinancialOperations).Returns(_opRepositoryMock.Object);
 
+        // Default setup for user context
+        SetupUserContext(_defaultUserId);
+
         _sut = new OperationTypeService(
             _unitOfWorkMock.Object,
             _createValidatorMock.Object,
+            _userContextMock.Object,
             _updateValidatorMock.Object,
             _loggerMock.Object);
     }
 
-    #region Constructor Tests
+    #region Helper Methods
 
-    [Fact]
-    public void Constructor_WithNullUnitOfWork_ThrowsArgumentNullException()
+    private void SetupUserContext(Guid userId)
     {
-        // Act
-        var act = () => new OperationTypeService(null!, _createValidatorMock.Object, _updateValidatorMock.Object, _loggerMock.Object);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("unitOfWork");
+        _userContextMock.Setup(c => c.GetRequiredUserId()).Returns(userId);
     }
 
-    [Fact]
-    public void Constructor_WithNullCreateValidator_ThrowsArgumentNullException()
+    private FinancialOperationType CreateOperationType(
+        Guid? id = null,
+        Guid? userId = null,
+        string name = "TestType",
+        string description = "Test Description",
+        OperationKind kind = OperationKind.Income)
     {
-        // Act
-        var act = () => new OperationTypeService(_unitOfWorkMock.Object, null!, _updateValidatorMock.Object, _loggerMock.Object);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("createValidator");
+        return new FinancialOperationType
+        {
+            Id = id ?? Guid.NewGuid(),
+            UserId = userId ?? _defaultUserId,
+            Name = name,
+            Description = description,
+            Kind = kind
+        };
     }
 
-    [Fact]
-    public void Constructor_WithNullUpdateValidator_ThrowsArgumentNullException()
+    private void SetupValidValidation<T>()
     {
-        // Act
-        var act = () => new OperationTypeService(_unitOfWorkMock.Object, _createValidatorMock.Object, null!, _loggerMock.Object);
-
-        // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("updateValidator");
+        if (typeof(T) == typeof(OperationTypeCreateDto))
+        {
+            _createValidatorMock
+                .Setup(v => v.ValidateAsync(It.IsAny<ValidationContext<OperationTypeCreateDto>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult());
+        }
+        else if (typeof(T) == typeof(OperationTypeUpdateDto))
+        {
+            _updateValidatorMock
+                .Setup(v => v.ValidateAsync(It.IsAny<ValidationContext<OperationTypeUpdateDto>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult());
+        }
     }
 
-    [Fact]
-    public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+    private void SetupGetByIdForUser(Guid id, FinancialOperationType? entity)
     {
-        // Act
-        var act = () => new OperationTypeService(_unitOfWorkMock.Object, _createValidatorMock.Object, _updateValidatorMock.Object, null!);
+        _opTypeRepositoryMock
+            .Setup(r => r.GetByIdForUserAsync(_defaultUserId, id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entity);
+    }
 
-        // Assert
-        act.Should().Throw<ArgumentNullException>()
-            .WithParameterName("logger");
+    private void SetupExistsByNameKind(string name, OperationKind kind, Guid? excludeId, bool exists)
+    {
+        _opTypeRepositoryMock
+            .Setup(r => r.ExistsByNameKindAsync(_defaultUserId, name, kind, excludeId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(exists);
+    }
+
+    private void SetupSuccessfulSave()
+    {
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
     }
 
     #endregion
@@ -96,16 +120,8 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
-        {
-            Id = id,
-            Name = "Salary",
-            Description = "Monthly salary",
-            Kind = OperationKind.Income
-        };
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
+        var entity = CreateOperationType(id: id, name: "Salary", description: "Monthly salary");
+        SetupGetByIdForUser(id, entity);
 
         // Act
         var result = await _sut.GetTypeByIdAsync(id);
@@ -123,8 +139,7 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FinancialOperationType?)null);
+        SetupGetByIdForUser(id, null);
 
         // Act
         var act = async () => await _sut.GetTypeByIdAsync(id);
@@ -134,81 +149,46 @@ public class OperationTypeServiceTests
             .WithMessage($"*{id}*");
     }
 
-    [Fact]
-    public async Task GetTypeByIdAsync_PassesCancellationToken()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var cts = new CancellationTokenSource();
-        var entity = new FinancialOperationType { Id = id, Name = "Test", Kind = OperationKind.Income };
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, cts.Token))
-            .ReturnsAsync(entity);
-
-        // Act
-        await _sut.GetTypeByIdAsync(id, cts.Token);
-
-        // Assert
-        _opTypeRepositoryMock.Verify(r => r.GetByIdAsync(id, cts.Token), Times.Once);
-        cts.Dispose();
-    }
-
     #endregion
 
-    #region GetAllTypesAsync Tests
+    #region GetUserTypesAsync Tests
 
     [Fact]
-    public async Task GetAllTypesAsync_ReturnsAllOperationTypes()
+    public async Task GetUserTypesAsync_ReturnsAllOperationTypes()
     {
         // Arrange
         var entities = new List<FinancialOperationType>
         {
-            new() { Id = Guid.NewGuid(), Name = "Salary", Description = "Income", Kind = OperationKind.Income },
-            new() { Id = Guid.NewGuid(), Name = "Rent", Description = "Expense", Kind = OperationKind.Expense }
+            CreateOperationType(name: "Salary", description: "Income", kind: OperationKind.Income),
+            CreateOperationType(name: "Rent", description: "Expense", kind: OperationKind.Expense)
         };
 
-        _opTypeRepositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        _opTypeRepositoryMock
+            .Setup(r => r.GetUserTypesAsync(_defaultUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(entities);
 
         // Act
-        var result = await _sut.GetAllTypesAsync();
+        var result = await _sut.GetUserTypesAsync();
 
         // Assert
-        result.Should().NotBeNull()
-            .And.HaveCount(2)
+        result.Should().HaveCount(2)
             .And.Contain(r => r.Name == "Salary")
             .And.Contain(r => r.Name == "Rent");
     }
 
     [Fact]
-    public async Task GetAllTypesAsync_WithEmptyRepository_ReturnsEmptyList()
+    public async Task GetUserTypesAsync_WithEmptyRepository_ReturnsEmptyList()
     {
         // Arrange
-        _opTypeRepositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        _opTypeRepositoryMock
+            .Setup(r => r.GetUserTypesAsync(_defaultUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FinancialOperationType>());
 
         // Act
-        var result = await _sut.GetAllTypesAsync();
+        var result = await _sut.GetUserTypesAsync();
 
         // Assert
-        result.Should().NotBeNull()
-            .And.BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetAllTypesAsync_PassesCancellationToken()
-    {
-        // Arrange
-        var cts = new CancellationTokenSource();
-        _opTypeRepositoryMock.Setup(r => r.GetAllAsync(cts.Token))
-            .ReturnsAsync([]);
-
-        // Act
-        await _sut.GetAllTypesAsync(cts.Token);
-
-        // Assert
-        _opTypeRepositoryMock.Verify(r => r.GetAllAsync(cts.Token), Times.Once);
-        cts.Dispose();
+        result.Should().BeEmpty();
     }
 
     #endregion
@@ -219,22 +199,16 @@ public class OperationTypeServiceTests
     public async Task CreateTypeAsync_WithValidData_ReturnsNewId()
     {
         // Arrange
-        var createDto = new OperationTypeCreateDto("Salary", "Monthly income", OperationKind.Income);
+        var createDto = new OperationTypeCreateDto
+        {
+            Name = "Salary",
+            Description = "Monthly income",
+            Kind = OperationKind.Income
+        };
 
-        _createValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeCreateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            null, createDto.Name, createDto.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        _opTypeRepositoryMock.Setup(r => r.AddAsync(It.IsAny<FinancialOperationType>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        SetupValidValidation<OperationTypeCreateDto>();
+        SetupExistsByNameKind(createDto.Name, createDto.Kind, null, false);
+        SetupSuccessfulSave();
 
         // Act
         var result = await _sut.CreateTypeAsync(createDto);
@@ -244,6 +218,7 @@ public class OperationTypeServiceTests
 
         _opTypeRepositoryMock.Verify(r => r.AddAsync(
             It.Is<FinancialOperationType>(e =>
+                e.UserId == _defaultUserId &&
                 e.Name == "Salary" &&
                 e.Description == "Monthly income" &&
                 e.Kind == OperationKind.Income),
@@ -256,16 +231,16 @@ public class OperationTypeServiceTests
     public async Task CreateTypeAsync_TrimsNameWhitespace()
     {
         // Arrange
-        var createDto = new OperationTypeCreateDto("  Salary  ", "Description", OperationKind.Income);
+        var createDto = new OperationTypeCreateDto
+        {
+            Name = "  Salary  ",
+            Description = "Monthly income",
+            Kind = OperationKind.Income
+        };
 
-        _createValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeCreateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            null, createDto.Name, createDto.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        SetupValidValidation<OperationTypeCreateDto>();
+        SetupExistsByNameKind("  Salary  ", createDto.Kind, null, false);
+        SetupSuccessfulSave();
 
         // Act
         await _sut.CreateTypeAsync(createDto);
@@ -280,16 +255,15 @@ public class OperationTypeServiceTests
     public async Task CreateTypeAsync_WithDuplicateNameAndKind_ThrowsConflictException()
     {
         // Arrange
-        var createDto = new OperationTypeCreateDto("Salary", "Description", OperationKind.Income);
+        var createDto = new OperationTypeCreateDto
+        {
+            Name = "Salary",
+            Description = "Monthly income",
+            Kind = OperationKind.Income
+        };
 
-        _createValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeCreateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            null, createDto.Name, createDto.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupValidValidation<OperationTypeCreateDto>();
+        SetupExistsByNameKind(createDto.Name, createDto.Kind, null, true);
 
         // Act
         var act = async () => await _sut.CreateTypeAsync(createDto);
@@ -304,35 +278,17 @@ public class OperationTypeServiceTests
     }
 
     [Fact]
-    public async Task CreateTypeAsync_PassesCancellationToken()
+    public async Task CreateTypeAsync_WhenUserContextThrows_PropagatesException()
     {
         // Arrange
-        var createDto = new OperationTypeCreateDto("Salary", "Description", OperationKind.Income);
-        var cts = new CancellationTokenSource();
-
-        _createValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeCreateDto>>(),
-            cts.Token))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            null, createDto.Name, createDto.Kind, cts.Token))
-            .ReturnsAsync(false);
+        _userContextMock.Setup(c => c.GetRequiredUserId())
+            .Throws(new UnauthorizedAccessException("User not authenticated"));
 
         // Act
-        await _sut.CreateTypeAsync(createDto, cts.Token);
+        var act = async () => await _sut.CreateTypeAsync(new OperationTypeCreateDto());
 
         // Assert
-        _createValidatorMock.Verify(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeCreateDto>>(),
-            cts.Token), Times.Once);
-
-        _opTypeRepositoryMock.Verify(
-            r => r.AddAsync(It.IsAny<FinancialOperationType>(), cts.Token),
-            Times.Once);
-
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
-        cts.Dispose();
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     #endregion
@@ -344,26 +300,17 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
+        var entity = CreateOperationType(id: id, name: "OldName", description: "Old description");
+        var updateDto = new OperationTypeUpdateDto
         {
-            Id = id,
-            Name = "OldName",
-            Description = "Old description",
-            Kind = OperationKind.Income
+            Name = "NewName",
+            Description = "New description"
         };
-        var updateDto = new OperationTypeUpdateDto("NewName", "New description");
 
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            id, updateDto.Name, entity.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        SetupValidValidation<OperationTypeUpdateDto>();
+        SetupGetByIdForUser(id, entity);
+        SetupExistsByNameKind(updateDto.Name, entity.Kind, id, false);
+        SetupSuccessfulSave();
 
         // Act
         await _sut.UpdateTypeAsync(id, updateDto);
@@ -381,26 +328,17 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
+        var entity = CreateOperationType(id: id, name: "OldName");
+        var updateDto = new OperationTypeUpdateDto
         {
-            Id = id,
-            Name = "OldName",
-            Description = "Description",
-            Kind = OperationKind.Income
+            Name = "  NewName  ",
+            Description = "New description"
         };
-        var updateDto = new OperationTypeUpdateDto("  NewName  ", "Description");
 
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            id, "NewName", entity.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        SetupValidValidation<OperationTypeUpdateDto>();
+        SetupGetByIdForUser(id, entity);
+        SetupExistsByNameKind("NewName", entity.Kind, id, false);
+        SetupSuccessfulSave();
 
         // Act
         await _sut.UpdateTypeAsync(id, updateDto);
@@ -410,52 +348,18 @@ public class OperationTypeServiceTests
     }
 
     [Fact]
-    public async Task UpdateTypeAsync_WithSameName_DoesNotCheckForDuplicates()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
-        {
-            Id = id,
-            Name = "SameName",
-            Description = "Old description",
-            Kind = OperationKind.Income
-        };
-        var updateDto = new OperationTypeUpdateDto("SameName", "New description");
-
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
-
-        // Act
-        await _sut.UpdateTypeAsync(id, updateDto);
-
-        // Assert
-        _opTypeRepositoryMock.Verify(r => r.ExistsByNameKindAsync(
-            It.IsAny<Guid?>(), It.IsAny<string>(), It.IsAny<OperationKind>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-
-        entity.Description.Should().Be("New description");
-    }
-
-    [Fact]
     public async Task UpdateTypeAsync_WithNonExistingId_ThrowsNotFoundException()
     {
         // Arrange
         var id = Guid.NewGuid();
-        var updateDto = new OperationTypeUpdateDto("Name", "Description");
+        var updateDto = new OperationTypeUpdateDto
+        {
+            Name = "NewName",
+            Description = "New description"
+        };
 
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FinancialOperationType?)null);
+        SetupValidValidation<OperationTypeUpdateDto>();
+        SetupGetByIdForUser(id, null);
 
         // Act
         var act = async () => await _sut.UpdateTypeAsync(id, updateDto);
@@ -470,26 +374,16 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
+        var entity = CreateOperationType(id: id, name: "OldName");
+        var updateDto = new OperationTypeUpdateDto
         {
-            Id = id,
-            Name = "OldName",
-            Description = "Description",
-            Kind = OperationKind.Income
+            Name = "NewName",
+            Description = "New description"
         };
-        var updateDto = new OperationTypeUpdateDto("DuplicateName", "Description");
 
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(
-            id, updateDto.Name, entity.Kind, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        SetupValidValidation<OperationTypeUpdateDto>();
+        SetupGetByIdForUser(id, entity);
+        SetupExistsByNameKind(updateDto.Name, entity.Kind, id, true);
 
         // Act
         var act = async () => await _sut.UpdateTypeAsync(id, updateDto);
@@ -501,39 +395,6 @@ public class OperationTypeServiceTests
         _opTypeRepositoryMock.Verify(r => r.Update(It.IsAny<FinancialOperationType>()), Times.Never);
     }
 
-    [Fact]
-    public async Task UpdateTypeAsync_PassesCancellationToken()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var entity = new FinancialOperationType { Id = id, Name = "Name", Kind = OperationKind.Income };
-        var updateDto = new OperationTypeUpdateDto("NewName", "Description");
-        var cts = new CancellationTokenSource();
-
-        _updateValidatorMock.Setup(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            cts.Token))
-            .ReturnsAsync(new ValidationResult());
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, cts.Token))
-            .ReturnsAsync(entity);
-
-        _opTypeRepositoryMock.Setup(r => r.ExistsByNameKindAsync(id, "NewName", entity.Kind, cts.Token))
-            .ReturnsAsync(false);
-
-        // Act
-        await _sut.UpdateTypeAsync(id, updateDto, cts.Token);
-
-        // Assert
-        _updateValidatorMock.Verify(v => v.ValidateAsync(
-            It.IsAny<ValidationContext<OperationTypeUpdateDto>>(),
-            cts.Token), Times.Once);
-
-        _opTypeRepositoryMock.Verify(r => r.GetByIdAsync(id, cts.Token), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
-        cts.Dispose();
-    }
-
     #endregion
 
     #region DeleteTypeAsync Tests
@@ -543,16 +404,13 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
-        {
-            Id = id,
-            Name = "ToDelete",
-            Description = "Description",
-            Kind = OperationKind.Income
-        };
+        var entity = CreateOperationType(id: id, name: "ToDelete");
 
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
+        SetupGetByIdForUser(id, entity);
+        _opRepositoryMock
+            .Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        SetupSuccessfulSave();
 
         // Act
         await _sut.DeleteTypeAsync(id);
@@ -567,8 +425,7 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FinancialOperationType?)null);
+        SetupGetByIdForUser(id, null);
 
         // Act
         var act = async () => await _sut.DeleteTypeAsync(id);
@@ -585,18 +442,11 @@ public class OperationTypeServiceTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var entity = new FinancialOperationType
-        {
-            Id = id,
-            Name = "ToDelete",
-            Description = "Description",
-            Kind = OperationKind.Income
-        };
+        var entity = CreateOperationType(id: id, name: "ToDelete");
 
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entity);
-
-        _opRepositoryMock.Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
+        SetupGetByIdForUser(id, entity);
+        _opRepositoryMock
+            .Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
@@ -607,26 +457,6 @@ public class OperationTypeServiceTests
             .WithMessage("*is used*");
 
         _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task DeleteTypeAsync_PassesCancellationToken()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var entity = new FinancialOperationType { Id = id, Name = "Test", Kind = OperationKind.Income };
-        var cts = new CancellationTokenSource();
-
-        _opTypeRepositoryMock.Setup(r => r.GetByIdAsync(id, cts.Token))
-            .ReturnsAsync(entity);
-
-        // Act
-        await _sut.DeleteTypeAsync(id, cts.Token);
-
-        // Assert
-        _opTypeRepositoryMock.Verify(r => r.GetByIdAsync(id, cts.Token), Times.Once);
-        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
-        cts.Dispose();
     }
 
     #endregion
