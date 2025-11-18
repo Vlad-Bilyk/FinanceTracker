@@ -85,6 +85,8 @@ try
     builder.Services.AddScoped<ITokenService, TokenService>();
     builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 
+    builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
+
     // Validators
     builder.Services.AddScoped<IValidator<OperationTypeCreateDto>, OperationTypeCreateValidator>();
     builder.Services.AddScoped<IValidator<OperationTypeUpdateDto>, OperationTypeUpdateValidator>();

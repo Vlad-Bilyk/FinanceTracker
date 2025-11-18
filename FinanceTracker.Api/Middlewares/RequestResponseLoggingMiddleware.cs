@@ -10,7 +10,7 @@ internal sealed class RequestResponseLoggingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
-    private static readonly string[] _sensitiveFields = ["password", "jwtToken"];
+    private static readonly string[] _sensitiveFields = ["password", "jwtToken", "apiKey"];
 
     public RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<RequestResponseLoggingMiddleware> logger)
     {

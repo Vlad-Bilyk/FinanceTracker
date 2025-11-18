@@ -14,14 +14,17 @@ public class FinancialOperationService : IFinancialOperationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserContext _userContext;
     private readonly IValidator<FinancialOperationUpsertDto> _upsertValidator;
+    private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<FinancialOperationService> _logger;
 
     public FinancialOperationService(IUnitOfWork unitOfWork, IUserContext userContext,
-        IValidator<FinancialOperationUpsertDto> upsertValidator, ILogger<FinancialOperationService> logger)
+        IValidator<FinancialOperationUpsertDto> upsertValidator, IExchangeRateService exchangeRateService,
+        ILogger<FinancialOperationService> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _upsertValidator = upsertValidator ?? throw new ArgumentNullException(nameof(upsertValidator));
+        _exchangeRateService = exchangeRateService ?? throw new ArgumentNullException(nameof(exchangeRateService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -55,19 +58,28 @@ public class FinancialOperationService : IFinancialOperationService
     {
         await _upsertValidator.ValidateAndThrowAsync(createDto, ct);
 
-        await EnshureWalletOwnedAsync(walletId, ct);
-        await EnshureTypeOwnedAsync(createDto.TypeId, ct);
+        var wallet = await GetValidWalletAsync(walletId, ct);
+        await EnsureTypeOwnedAsync(createDto.TypeId, ct);
+        await ValidateCurrencyExistsAsync(createDto.CurrencyOriginalCode!, ct);
+
+        var exchangeRate = await _exchangeRateService.GetExchangeRateAsync(
+            createDto.CurrencyOriginalCode!, wallet.BaseCurrencyCode, createDto.Date, ct);
+
+        var amountBase = createDto.AmountOriginal * exchangeRate;
+
+        var note = BuildOperationNote(createDto.Note, createDto.AmountOriginal,
+            createDto.CurrencyOriginalCode!, wallet.BaseCurrencyCode, exchangeRate);
 
         var finOperation = new FinancialOperation
         {
             Id = Guid.NewGuid(),
             WalletId = walletId,
             TypeId = createDto.TypeId,
-            AmountBase = 0, // TODO: This should be calculated based on currency conversion logic 
+            AmountBase = amountBase,
             AmountOriginal = createDto.AmountOriginal,
             CurrencyOriginalCode = createDto.CurrencyOriginalCode,
             Date = createDto.Date,
-            Note = createDto.Note // TODO: write exchange rate in the Note field
+            Note = note.Trim()
         };
 
         await _unitOfWork.FinancialOperations.AddAsync(finOperation, ct);
@@ -81,17 +93,33 @@ public class FinancialOperationService : IFinancialOperationService
 
     public async Task UpdateOperationAsync(Guid walletId, Guid id, FinancialOperationUpsertDto updateDto, CancellationToken ct = default)
     {
-        var finOperation = await _unitOfWork.FinancialOperations.GetByIdAsync(walletId, id, ct)
+        var finOperation = await _unitOfWork.FinancialOperations.GetByIdWithDetailsAsync(walletId, id, ct)
             ?? throw new NotFoundException($"Financial operation with id {id} was not found");
 
         await _upsertValidator.ValidateAndThrowAsync(updateDto, ct);
 
-        await EnshureTypeOwnedAsync(updateDto.TypeId, ct);
+        await EnsureTypeOwnedAsync(updateDto.TypeId, ct);
+        await ValidateCurrencyExistsAsync(updateDto.CurrencyOriginalCode!, ct);
 
         finOperation.TypeId = updateDto.TypeId;
-        finOperation.AmountOriginal = updateDto.AmountOriginal;
         finOperation.Date = updateDto.Date;
-        finOperation.Note = updateDto.Note;
+        finOperation.AmountOriginal = updateDto.AmountOriginal;
+        finOperation.CurrencyOriginalCode = updateDto.CurrencyOriginalCode;
+
+        if (ShouldRecalculateExchangeRate(finOperation, updateDto))
+        {
+            var exchangeRate = await _exchangeRateService.GetExchangeRateAsync(
+                updateDto.CurrencyOriginalCode!, finOperation.Wallet.BaseCurrencyCode, updateDto.Date, ct);
+
+            finOperation.AmountBase = updateDto.AmountOriginal * exchangeRate;
+
+            finOperation.Note = BuildOperationNote(updateDto.Note, finOperation.AmountOriginal,
+                finOperation.CurrencyOriginalCode!, finOperation.Wallet.BaseCurrencyCode, exchangeRate);
+        }
+        else
+        {
+            finOperation.Note = updateDto.Note?.Trim();
+        }
 
         _unitOfWork.FinancialOperations.Update(finOperation);
         await _unitOfWork.SaveChangesAsync(ct);
@@ -112,18 +140,65 @@ public class FinancialOperationService : IFinancialOperationService
             entity.Id, walletId);
     }
 
-    private async Task EnshureWalletOwnedAsync(Guid walletId, CancellationToken ct)
+    private async Task<Wallet> GetValidWalletAsync(Guid walletId, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
-        _ = await _unitOfWork.Wallets.GetByIdForUserAsync(userId, walletId, ct)
+        return await _unitOfWork.Wallets.GetByIdForUserAsync(userId, walletId, ct)
             ?? throw new NotFoundException($"Wallet with id {walletId} was not found");
     }
 
-    private async Task EnshureTypeOwnedAsync(Guid typeId, CancellationToken ct)
+    private async Task EnsureTypeOwnedAsync(Guid typeId, CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         _ = await _unitOfWork.FinancialOperationTypes.GetByIdForUserAsync(userId, typeId, ct)
             ?? throw new NotFoundException($"Operation type with id {typeId} was not found");
+    }
+
+    private async Task ValidateCurrencyExistsAsync(string currencyCode, CancellationToken ct)
+    {
+        var exists = await _unitOfWork.Currencies.ExistsAsync(currencyCode, ct);
+        if (!exists)
+        {
+            throw new ValidationException(
+                $"Currency code '{currencyCode}' is not supported. " +
+                $"Use GET /api/currencies to see available currencies.");
+        }
+    }
+
+    private static string BuildOperationNote(string? userNote, decimal amountOriginal,
+        string currencyOriginalCode, string baseCurrencyCode, decimal exchangeRate)
+    {
+        var originalInfo =
+            $"Original amount: {amountOriginal} {currencyOriginalCode}, " +
+            $"exchange rate {exchangeRate} {baseCurrencyCode}/{currencyOriginalCode}.";
+
+        if (string.IsNullOrEmpty(userNote))
+        {
+            return originalInfo;
+        }
+
+        return $"{userNote.Trim()}\n{originalInfo}";
+    }
+
+    private static bool ShouldRecalculateExchangeRate(FinancialOperation existing, FinancialOperationUpsertDto dto)
+    {
+        if (existing.AmountOriginal != dto.AmountOriginal)
+        {
+            return true;
+        }
+
+        if (!string.Equals(existing.CurrencyOriginalCode,
+            dto.CurrencyOriginalCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (existing.Date != dto.Date)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private Guid GetCurrentUserId()
