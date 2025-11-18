@@ -103,14 +103,14 @@ public class FinancialOperationService : IFinancialOperationService
 
         finOperation.TypeId = updateDto.TypeId;
         finOperation.Date = updateDto.Date;
-        finOperation.AmountOriginal = updateDto.AmountOriginal;
-        finOperation.CurrencyOriginalCode = updateDto.CurrencyOriginalCode;
 
         if (ShouldRecalculateExchangeRate(finOperation, updateDto))
         {
             var exchangeRate = await _exchangeRateService.GetExchangeRateAsync(
                 updateDto.CurrencyOriginalCode!, finOperation.Wallet.BaseCurrencyCode, updateDto.Date, ct);
 
+            finOperation.AmountOriginal = updateDto.AmountOriginal;
+            finOperation.CurrencyOriginalCode = updateDto.CurrencyOriginalCode;
             finOperation.AmountBase = updateDto.AmountOriginal * exchangeRate;
 
             finOperation.Note = BuildOperationNote(updateDto.Note, finOperation.AmountOriginal,

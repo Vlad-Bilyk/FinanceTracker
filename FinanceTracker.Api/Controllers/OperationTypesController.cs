@@ -8,7 +8,7 @@ namespace FinanceTracker.Api.Controllers;
 /// <summary>
 /// Manages operation types for the current authenticated user.
 /// </summary>
-[Route("api/users/{userId:guid}/types")]
+[Route("api/users/types")]
 [Authorize]
 [ApiController]
 public class OperationTypesController : ControllerBase
