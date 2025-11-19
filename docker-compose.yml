@@ -16,6 +16,29 @@ services:
       - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - finance-tracker-network
 
+  api:
+    build:
+      context: .
+      dockerfile: FinanceTracker.Api/Dockerfile
+    container_name: financetracker-api
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultDbConnection: "Host=db;Port=5432;Database=FinanceTrackerDb;Username=postgres;Password=0000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - finance-tracker-network
+       
 volumes:
     pgdata:
+    
+    
+networks:
+  finance-tracker-network:
+    driver: bridge
