@@ -58,8 +58,9 @@ public class FinancialOperationTypeRepository : IFinancialOperationTypeRepositor
         _context.FinancialOperationTypes.Update(entity);
     }
 
-    public void Delete(FinancialOperationType entity)
+    public void SoftDelete(FinancialOperationType entity)
     {
-        _context.FinancialOperationTypes.Remove(entity);
+        entity.IsDeleted = true;
+        _context.Update(entity);
     }
 }

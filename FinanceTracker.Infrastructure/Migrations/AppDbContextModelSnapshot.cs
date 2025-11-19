@@ -96,6 +96,9 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text");
@@ -110,7 +113,7 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Kind", "Name")
+                    b.HasIndex("UserId", "Kind", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("FinancialOperationTypes");
@@ -136,7 +139,7 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserName")
+                    b.HasIndex("UserName", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("Users");
@@ -169,7 +172,7 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasIndex("BaseCurrencyCode");
 
-                    b.HasIndex("UserId", "Name")
+                    b.HasIndex("UserId", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("Wallets");
@@ -204,7 +207,7 @@ namespace FinanceTracker.Infrastructure.Migrations
             modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
                 {
                     b.HasOne("FinanceTracker.Domain.Entities.User", "User")
-                        .WithMany()
+                        .WithMany("FinancialOperationTypes")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -238,6 +241,8 @@ namespace FinanceTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("FinanceTracker.Domain.Entities.User", b =>
                 {
+                    b.Navigation("FinancialOperationTypes");
+
                     b.Navigation("Wallets");
                 });
 

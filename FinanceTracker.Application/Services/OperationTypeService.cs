@@ -86,13 +86,7 @@ public class OperationTypeService : IOperationTypeService
     {
         var type = await GetValidTypeAsync(id, ct);
 
-        var isUsed = await _unitOfWork.FinancialOperations.AnyByTypeIdAsync(id, ct);
-        if (isUsed)
-        {
-            throw new ConflictException("Cannot delete operation type because it is used in existing operations.");
-        }
-
-        _unitOfWork.FinancialOperationTypes.Delete(type);
+        _unitOfWork.FinancialOperationTypes.SoftDelete(type);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Deleted financial operation type with id {OperationTypeId}", id);

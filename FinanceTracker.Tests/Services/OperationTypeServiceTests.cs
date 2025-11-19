@@ -416,7 +416,7 @@ public class OperationTypeServiceTests
         await _sut.DeleteTypeAsync(id);
 
         // Assert
-        _opTypeRepositoryMock.Verify(r => r.Delete(entity), Times.Once);
+        _opTypeRepositoryMock.Verify(r => r.SoftDelete(entity), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -434,29 +434,7 @@ public class OperationTypeServiceTests
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage($"*{id}*");
 
-        _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task DeleteTypeAsync_WithIsUsedType_ThrowsConflictException()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var entity = CreateOperationType(id: id, name: "ToDelete");
-
-        SetupGetByIdForUser(id, entity);
-        _opRepositoryMock
-            .Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        // Act
-        var act = async () => await _sut.DeleteTypeAsync(id);
-
-        // Assert
-        await act.Should().ThrowAsync<ConflictException>()
-            .WithMessage("*is used*");
-
-        _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
+        _opTypeRepositoryMock.Verify(r => r.SoftDelete(It.IsAny<FinancialOperationType>()), Times.Never);
     }
 
     #endregion

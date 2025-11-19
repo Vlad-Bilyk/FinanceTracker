@@ -203,6 +203,8 @@ public class FinancialOperationServiceTests
             currencyCode: "EUR",
             note: "Test note");
 
+        SetupValidWallet(walletId);
+
         _opRepositoryMock
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(operation);
@@ -226,6 +228,8 @@ public class FinancialOperationServiceTests
         // Arrange
         var walletId = Guid.NewGuid();
         var operationId = Guid.NewGuid();
+
+        SetupValidWallet(walletId);
 
         _opRepositoryMock
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
@@ -254,6 +258,8 @@ public class FinancialOperationServiceTests
             CreateOperation(walletId: walletId, amountBase: 200m)
         };
 
+        SetupValidWallet(walletId);
+
         _opRepositoryMock
             .Setup(r => r.GetWalletOperationsAsync(walletId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(operations);
@@ -272,6 +278,8 @@ public class FinancialOperationServiceTests
     {
         // Arrange
         var walletId = Guid.NewGuid();
+
+        SetupValidWallet(walletId);
 
         _opRepositoryMock
             .Setup(r => r.GetWalletOperationsAsync(walletId, It.IsAny<CancellationToken>()))
@@ -439,6 +447,7 @@ public class FinancialOperationServiceTests
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingOp);
 
+        SetupValidWallet(walletId);
         SetupValidValidation();
         SetupValidOperationType(updateDto.TypeId);
         SetupCurrencyExists("EUR");
@@ -476,6 +485,7 @@ public class FinancialOperationServiceTests
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingOp);
 
+        SetupValidWallet(walletId);
         SetupValidValidation();
         SetupValidOperationType(updateDto.TypeId);
         SetupCurrencyExists("GBP");
@@ -516,6 +526,7 @@ public class FinancialOperationServiceTests
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingOp);
 
+        SetupValidWallet(walletId);
         SetupValidValidation();
         SetupValidOperationType(newTypeId);
         SetupCurrencyExists("EUR");
@@ -543,6 +554,8 @@ public class FinancialOperationServiceTests
         var operationId = Guid.NewGuid();
         var updateDto = CreateUpsertDto();
 
+        SetupValidWallet(walletId);
+
         _opRepositoryMock
             .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((FinancialOperation?)null);
@@ -568,9 +581,10 @@ public class FinancialOperationServiceTests
         var operation = CreateOperation(id: operationId, walletId: walletId);
 
         _opRepositoryMock
-            .Setup(r => r.GetByIdAsync(walletId, operationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(operation);
 
+        SetupValidWallet(walletId);
         SetupSuccessfulSave();
 
         // Act
@@ -588,8 +602,10 @@ public class FinancialOperationServiceTests
         var walletId = Guid.NewGuid();
         var operationId = Guid.NewGuid();
 
+        SetupValidWallet(walletId);
+
         _opRepositoryMock
-            .Setup(r => r.GetByIdAsync(walletId, operationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByIdWithDetailsAsync(walletId, operationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((FinancialOperation?)null);
 
         // Act

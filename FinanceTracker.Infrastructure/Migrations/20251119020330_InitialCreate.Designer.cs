@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FinanceTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251112170846_AddUserAndWalletEntities")]
-    partial class AddUserAndWalletEntities
+    [Migration("20251119020330_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,6 +25,23 @@ namespace FinanceTracker.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.Currency", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("Currencies");
+                });
+
             modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -35,13 +52,17 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<string>("CurrencyOriginal")
+                    b.Property<decimal>("AmountOriginal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("CurrencyOriginalCode")
                         .HasMaxLength(3)
                         .HasColumnType("character(3)")
                         .IsFixedLength();
 
-                    b.Property<DateTimeOffset>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -57,6 +78,8 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CurrencyOriginalCode");
 
                     b.HasIndex("TypeId");
 
@@ -76,6 +99,9 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text");
@@ -85,9 +111,12 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Kind", "Name")
+                    b.HasIndex("UserId", "Kind", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("FinancialOperationTypes");
@@ -98,6 +127,9 @@ namespace FinanceTracker.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -110,7 +142,7 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserName")
+                    b.HasIndex("UserName", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("Users");
@@ -128,6 +160,9 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasColumnType("character(3)")
                         .IsFixedLength();
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -138,7 +173,9 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Name")
+                    b.HasIndex("BaseCurrencyCode");
+
+                    b.HasIndex("UserId", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("Wallets");
@@ -146,6 +183,11 @@ namespace FinanceTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperation", b =>
                 {
+                    b.HasOne("FinanceTracker.Domain.Entities.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyOriginalCode")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FinanceTracker.Domain.Entities.FinancialOperationType", "Type")
                         .WithMany("Operations")
                         .HasForeignKey("TypeId")
@@ -158,18 +200,39 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Currency");
+
                     b.Navigation("Type");
 
                     b.Navigation("Wallet");
                 });
 
+            modelBuilder.Entity("FinanceTracker.Domain.Entities.FinancialOperationType", b =>
+                {
+                    b.HasOne("FinanceTracker.Domain.Entities.User", "User")
+                        .WithMany("FinancialOperationTypes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("FinanceTracker.Domain.Entities.Wallet", b =>
                 {
+                    b.HasOne("FinanceTracker.Domain.Entities.Currency", "BaseCurrency")
+                        .WithMany()
+                        .HasForeignKey("BaseCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("FinanceTracker.Domain.Entities.User", "User")
                         .WithMany("Wallets")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("BaseCurrency");
 
                     b.Navigation("User");
                 });
@@ -181,6 +244,8 @@ namespace FinanceTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("FinanceTracker.Domain.Entities.User", b =>
                 {
+                    b.Navigation("FinancialOperationTypes");
+
                     b.Navigation("Wallets");
                 });
 

@@ -25,7 +25,7 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         return await _context.FinancialOperations
             .Include(x => x.Type)
             .Include(x => x.Wallet)
-            .FirstOrDefaultAsync(x => x.Id == id, ct);
+            .FirstOrDefaultAsync(x => x.Id == id && x.WalletId == walletId, ct);
     }
 
     public async Task<IReadOnlyList<FinancialOperation>> GetWalletOperationsAsync(Guid walletId, CancellationToken ct = default)
@@ -34,6 +34,7 @@ public class FinancialOperationRepository : IFinancialOperationRepository
             .AsNoTracking()
             .Include(x => x.Type)
             .Include(x => x.Wallet)
+            .Where(x => x.WalletId == walletId)
             .OrderBy(x => x.Date)
             .ToListAsync(ct);
     }

@@ -8,4 +8,5 @@ public class User
     public bool IsDeleted { get; set; }
 
     public ICollection<Wallet> Wallets { get; set; } = [];
+    public ICollection<FinancialOperationType> FinancialOperationTypes { get; set; } = [];
 }

@@ -30,8 +30,7 @@ public class FinancialOperationService : IFinancialOperationService
 
     public async Task<FinancialOperationDetailsDto> GetOperationByIdAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
-        var finOperation = await _unitOfWork.FinancialOperations.GetByIdWithDetailsAsync(walletId, id, ct)
-            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+        var finOperation = await GetValidOperationAsync(walletId, id, ct);
 
         // TODO: add mapping with AutoMapper
         return new FinancialOperationDetailsDto
@@ -44,6 +43,8 @@ public class FinancialOperationService : IFinancialOperationService
 
     public async Task<IReadOnlyList<FinancialOperationDetailsDto>> GetAllOperationsAsync(Guid walletId, CancellationToken ct = default)
     {
+        _ = await GetValidWalletAsync(walletId, ct); // Checking that the wallet belongs to the user 
+
         var finOperations = await _unitOfWork.FinancialOperations.GetWalletOperationsAsync(walletId, ct);
 
         return finOperations.Select(op => new FinancialOperationDetailsDto
@@ -93,8 +94,7 @@ public class FinancialOperationService : IFinancialOperationService
 
     public async Task UpdateOperationAsync(Guid walletId, Guid id, FinancialOperationUpsertDto updateDto, CancellationToken ct = default)
     {
-        var finOperation = await _unitOfWork.FinancialOperations.GetByIdWithDetailsAsync(walletId, id, ct)
-            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+        var finOperation = await GetValidOperationAsync(walletId, id, ct);
 
         await _upsertValidator.ValidateAndThrowAsync(updateDto, ct);
 
@@ -130,14 +130,21 @@ public class FinancialOperationService : IFinancialOperationService
 
     public async Task SoftDeleteOperationAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
-        var entity = await _unitOfWork.FinancialOperations.GetByIdAsync(walletId, id, ct)
-            ?? throw new NotFoundException($"Financial operation with id {id} was not found");
+        var finOperation = await GetValidOperationAsync(walletId, id, ct);
 
-        _unitOfWork.FinancialOperations.SoftDelete(entity);
+        _unitOfWork.FinancialOperations.SoftDelete(finOperation);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Soft deleted financial operation with id {OperationId} in wallet with id {WalletId}",
-            entity.Id, walletId);
+            finOperation.Id, walletId);
+    }
+
+    private async Task<FinancialOperation> GetValidOperationAsync(Guid walletId, Guid operationId, CancellationToken ct = default)
+    {
+        _ = await GetValidWalletAsync(walletId, ct); // Checking that the wallet belongs to the user 
+
+        return await _unitOfWork.FinancialOperations.GetByIdWithDetailsAsync(walletId, operationId, ct)
+            ?? throw new NotFoundException($"Financial operation with id {operationId} was not found");
     }
 
     private async Task<Wallet> GetValidWalletAsync(Guid walletId, CancellationToken ct)
@@ -170,7 +177,7 @@ public class FinancialOperationService : IFinancialOperationService
     {
         var originalInfo =
             $"Original amount: {amountOriginal} {currencyOriginalCode}, " +
-            $"exchange rate {exchangeRate} {baseCurrencyCode}/{currencyOriginalCode}.";
+            $"exchange rate {exchangeRate:F4} {baseCurrencyCode}/{currencyOriginalCode}.";
 
         if (string.IsNullOrEmpty(userNote))
         {

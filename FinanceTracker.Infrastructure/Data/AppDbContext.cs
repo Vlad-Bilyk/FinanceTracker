@@ -31,8 +31,15 @@ public class AppDbContext : DbContext
             e.Property(x => x.Kind)
              .HasConversion<string>();
 
-            e.HasIndex(x => new { x.UserId, x.Kind, x.Name })
+            e.HasIndex(x => new { x.UserId, x.Kind, x.Name, x.IsDeleted })
              .IsUnique();
+
+            e.HasOne(x => x.User)
+             .WithMany(u => u.FinancialOperationTypes)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<FinancialOperation>(e =>
@@ -79,7 +86,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.PasswordHash)
              .IsRequired();
 
-            e.HasIndex(x => x.UserName)
+            e.HasIndex(x => new { x.UserName, x.IsDeleted })
              .IsUnique();
 
             e.HasQueryFilter(x => !x.IsDeleted);
@@ -96,7 +103,7 @@ public class AppDbContext : DbContext
              .IsFixedLength()
              .IsRequired();
 
-            e.HasIndex(x => new { x.UserId, x.Name })
+            e.HasIndex(x => new { x.UserId, x.Name, x.IsDeleted })
              .IsUnique();
 
             e.HasOne(x => x.User)

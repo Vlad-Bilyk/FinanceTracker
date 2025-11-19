@@ -10,5 +10,5 @@ public interface IFinancialOperationTypeRepository
     Task AddAsync(FinancialOperationType entity, CancellationToken ct = default);
     Task<bool> ExistsByNameKindAsync(Guid userId, string name, OperationKind kind, Guid? excludeTypeId, CancellationToken ct);
     void Update(FinancialOperationType entity);
-    void Delete(FinancialOperationType entity);
+    void SoftDelete(FinancialOperationType entity);
 }
