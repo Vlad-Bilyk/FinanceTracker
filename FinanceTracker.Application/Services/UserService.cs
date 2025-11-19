@@ -3,6 +3,7 @@ using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Application.Interfaces.Services;
+using FinanceTracker.Domain.Entities;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
@@ -37,6 +38,14 @@ public class UserService : IUserService
         return new UserDto(user.Id, user.UserName);
     }
 
+    public async Task<UserDto> GetCurrentUserAsync(CancellationToken ct = default)
+    {
+        var userId = _userContext.GetRequiredUserId();
+        var user = await GetValidUserAsync(userId, ct);
+
+        return new UserDto(user.Id, user.UserName);
+    }
+
     public async Task<IReadOnlyList<UserDto>> GetAllUsersAsync(CancellationToken ct = default)
     {
         var users = await _unitOfWork.Users.GetAllAsync(ct);
@@ -46,8 +55,7 @@ public class UserService : IUserService
 
     public async Task UpdateUserAsync(Guid id, UserUpdateDto updateDto, CancellationToken ct = default)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException($"User with id {id} was not found");
+        var user = await GetValidUserAsync(id, ct);
 
         await _updateValidator.ValidateAndThrowAsync(updateDto, ct);
 
@@ -65,8 +73,7 @@ public class UserService : IUserService
 
     public async Task DeleteUserAsync(Guid id, CancellationToken ct = default)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException($"User with id {id} was not found");
+        var user = await GetValidUserAsync(id, ct);
 
         _unitOfWork.Users.SoftDelete(user);
         await _unitOfWork.SaveChangesAsync(ct);
@@ -76,9 +83,7 @@ public class UserService : IUserService
     public async Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
     {
         var userId = _userContext.GetRequiredUserId();
-
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, ct)
-            ?? throw new NotFoundException("User not found");
+        var user = await GetValidUserAsync(userId, ct);
 
         await _passwordValidator.ValidateAndThrowAsync(request, ct);
 
@@ -95,5 +100,11 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(ct);
         _logger.LogInformation("Password changed for user with id {UserId}", user.Id);
+    }
+
+    private async Task<User> GetValidUserAsync(Guid userId, CancellationToken ct)
+    {
+        return await _unitOfWork.Users.GetByIdAsync(userId, ct)
+            ?? throw new NotFoundException($"User with id {userId} was not found");
     }
 }

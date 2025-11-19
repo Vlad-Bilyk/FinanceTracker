@@ -409,7 +409,7 @@ public class UserServiceTests
 
         // Assert
         await act.Should().ThrowAsync<NotFoundException>()
-            .WithMessage("*User not found*");
+            .WithMessage($"*{userId}*");
     }
 
     #endregion

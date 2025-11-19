@@ -1,5 +1,6 @@
 ﻿using FinanceTracker.Application.DTOs.Auth;
 using FinanceTracker.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceTracker.Api.Controllers;
@@ -8,6 +9,7 @@ namespace FinanceTracker.Api.Controllers;
 /// Provides endpoints for user authentication and registration.
 /// </summary>
 [Route("api/auth")]
+[AllowAnonymous]
 [ApiController]
 public class AuthController : ControllerBase
 {

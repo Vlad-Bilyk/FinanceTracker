@@ -56,6 +56,20 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Gets the profile of the currently authenticated user.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The <see cref="UserDto"/> representing the authenticated user.</returns>
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserDto>> GetUser(CancellationToken ct)
+    {
+        var user = await _userService.GetCurrentUserAsync(ct);
+        return Ok(user);
+    }
+
+    /// <summary>
     /// Updates user data.
     /// </summary>
     /// <param name="id">User identifier.</param>
