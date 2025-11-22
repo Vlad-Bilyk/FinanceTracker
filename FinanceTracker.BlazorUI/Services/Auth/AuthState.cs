@@ -24,7 +24,7 @@ public class AuthState
             return;
         }
 
-        JwtToken = await _localStorageService.GetItemAsStringAsync(_tokenStorageKey, ct);
+        JwtToken = await _localStorageService.GetItemAsync<string>(_tokenStorageKey, ct);
         _isInitialized = true;
     }
 
