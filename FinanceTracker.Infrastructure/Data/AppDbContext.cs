@@ -31,15 +31,13 @@ public class AppDbContext : DbContext
             e.Property(x => x.Kind)
              .HasConversion<string>();
 
-            e.HasIndex(x => new { x.UserId, x.Kind, x.Name, x.IsDeleted })
+            e.HasIndex(x => new { x.UserId, x.Kind, x.Name })
              .IsUnique();
 
             e.HasOne(x => x.User)
              .WithMany(u => u.FinancialOperationTypes)
              .HasForeignKey(x => x.UserId)
              .OnDelete(DeleteBehavior.Cascade);
-
-            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<FinancialOperation>(e =>

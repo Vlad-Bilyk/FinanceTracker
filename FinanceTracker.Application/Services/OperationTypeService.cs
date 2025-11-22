@@ -82,14 +82,30 @@ public class OperationTypeService : IOperationTypeService
         _logger.LogInformation("Updated financial operation type with id {OperationTypeId}", id);
     }
 
-    public async Task DeleteTypeAsync(Guid id, CancellationToken ct = default)
+    /// <inheritdoc/>
+    public async Task DeleteTypeAsync(Guid id, Guid? replacementTypeId, CancellationToken ct = default)
     {
-        var type = await GetValidTypeAsync(id, ct);
+        var typeToDelete = await GetValidTypeAsync(id, ct);
 
-        _unitOfWork.FinancialOperationTypes.SoftDelete(type);
+        var isUsed = await _unitOfWork.FinancialOperations.AnyByTypeIdAsync(id, ct);
+        var reassignedCount = 0;
+
+        if (isUsed)
+        {
+            if (!replacementTypeId.HasValue)
+            {
+                throw new ConflictException("This type is used in existing operations. Replacement type is required.");
+            }
+
+            reassignedCount = await ReplaceTypeAsync(id, replacementTypeId.Value, ct);
+        }
+
+        _unitOfWork.FinancialOperationTypes.Delete(typeToDelete);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Deleted financial operation type with id {OperationTypeId}", id);
+        _logger.LogInformation("Deleted financial operation type with id {OperationTypeId}." +
+            "Reassigned {OperationCount} operations to {ReplacementTypeId}",
+            id, reassignedCount, replacementTypeId);
     }
 
     private async Task<FinancialOperationType> GetValidTypeAsync(Guid id, CancellationToken ct = default)
@@ -114,5 +130,24 @@ public class OperationTypeService : IOperationTypeService
         {
             throw new ConflictException("Operation type with the same Name and Kind already exists.");
         }
+    }
+
+    private async Task<int> ReplaceTypeAsync(Guid sourceTypeid, Guid replacementTypeId, CancellationToken ct = default)
+    {
+        if (replacementTypeId == sourceTypeid)
+        {
+            throw new ConflictException("Replacement type must be different from deleted type.");
+        }
+
+        _ = await GetValidTypeAsync(replacementTypeId, ct);
+
+        var operationsByType = await _unitOfWork.FinancialOperations.GetByTypeIdAsync(sourceTypeid, ct);
+
+        foreach (var operation in operationsByType)
+        {
+            operation.TypeId = replacementTypeId;
+        }
+
+        return operationsByType.Count;
     }
 }

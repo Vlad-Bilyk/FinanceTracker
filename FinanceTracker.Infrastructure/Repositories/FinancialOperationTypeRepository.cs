@@ -36,7 +36,7 @@ public class FinancialOperationTypeRepository : IFinancialOperationTypeRepositor
     }
 
     public async Task<bool> ExistsByNameKindAsync(Guid userId, string name, OperationKind kind,
-        Guid? excludeTypeId, CancellationToken ct)
+        Guid? excludeTypeId, CancellationToken ct = default)
     {
         var normalizedName = name.Trim();
 
@@ -58,9 +58,8 @@ public class FinancialOperationTypeRepository : IFinancialOperationTypeRepositor
         _context.FinancialOperationTypes.Update(entity);
     }
 
-    public void SoftDelete(FinancialOperationType entity)
+    public void Delete(FinancialOperationType entity)
     {
-        entity.IsDeleted = true;
-        _context.Update(entity);
+        _context.Remove(entity);
     }
 }

@@ -92,18 +92,19 @@ public class OperationTypesController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes an operation type
+    /// Deletes an operation type. If type is used, should set replacement type
     /// </summary>
     /// <param name="id">Operation type identifier.</param>
+    /// <param name="replacementTypeId">Optional identifier of the replacement operation type.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>No content.</returns>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteType(Guid id, CancellationToken ct)
+    public async Task<IActionResult> DeleteType(Guid id, Guid? replacementTypeId, CancellationToken ct)
     {
-        await _operationTypeService.DeleteTypeAsync(id, ct);
+        await _operationTypeService.DeleteTypeAsync(id, replacementTypeId, ct);
         return NoContent();
     }
 }

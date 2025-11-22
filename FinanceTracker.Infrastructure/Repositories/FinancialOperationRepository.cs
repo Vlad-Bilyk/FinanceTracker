@@ -56,7 +56,14 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         await _context.FinancialOperations.AddAsync(entity, ct);
     }
 
-    public async Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct)
+    public async Task<IReadOnlyList<FinancialOperation>> GetByTypeIdAsync(Guid typeId, CancellationToken ct = default)
+    {
+        return await _context.FinancialOperations
+            .Where(x => x.TypeId == typeId)
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct = default)
     {
         return await _context.FinancialOperations
             .AnyAsync(x => x.TypeId == typeId, ct);
