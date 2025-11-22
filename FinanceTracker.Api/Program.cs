@@ -168,6 +168,15 @@ try
         options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
     });
 
+    // Configure CORS
+    builder.Services.AddCors(options =>
+    {
+        options.AddDefaultPolicy(policy =>
+            policy.AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithOrigins("http://localhost:5022"));
+    });
+
     var app = builder.Build();
 
     // Apply migrations and seed the database
@@ -195,6 +204,7 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseCors();
 
     app.UseAuthentication();
     app.UseAuthorization();

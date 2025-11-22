@@ -1,4 +1,8 @@
-﻿<MudDrawer @bind-Open="_drawerOpen"
+﻿@using FinanceTracker.BlazorUI.Services.Auth
+@inject AuthState AuthState
+@inject NavigationManager NavigationManager
+
+<MudDrawer @bind-Open="_drawerOpen"
            ClipMode="DrawerClipMode.Never"
            Variant="DrawerVariant.Responsive"
            Elevation="1"
@@ -33,27 +37,58 @@
                    OnClick="ToggleDrawer" />
     <MudText Typo="Typo.h6">FinanceTracker</MudText>
     <MudSpacer />
-    <MudMenu>
-        <ActivatorContent>
-            <MudIcon Size="Size.Medium" Icon="@Icons.Material.Filled.Person" Class="cursor-pointer" />
+    
+    @if (!AuthState.IsAuthenticated)
+    {
+        <MudButton Color="Color.Inherit"
+                   Variant="Variant.Text"
+                   OnClick="@(() => NavigationManager.NavigateTo("/login"))">
+                   Login
+        </MudButton>
+
+        <MudButton Color="Color.Inherit"
+                   Variant="Variant.Outlined"
+                   Class="ml-2"
+                   OnClick="@(() => NavigationManager.NavigateTo("/register"))">
+                   Register
+        </MudButton>
+    }
+    else
+    {
+        <MudMenu>
+            <ActivatorContent>
+                <MudAvatar Class="cursor-pointer">
+                    <MudIcon Size="Size.Medium" Icon="@Icons.Material.Filled.Person" />
+                </MudAvatar>
             </ActivatorContent>
-        <ChildContent>
-            <MudMenuItem Href="/profile">Profile</MudMenuItem>
-            <MudMenuItem OnClick="Logout">Logout</MudMenuItem>
-        </ChildContent>
-    </MudMenu>
+            <ChildContent>
+                <MudMenuItem Href="/profile">Profile</MudMenuItem>
+                <MudMenuItem OnClick="LogoutAsync">Logout</MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+    }
+
 </MudAppBar>
 
 @code {
     private bool _drawerOpen = true;
+    private bool _isAuthInitialized;
 
-    void ToggleDrawer()
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.EnsureInitializedAsync();
+        _isAuthInitialized = true;
+    }
+
+
+    private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
     }
 
-    void Logout()
+    private async Task LogoutAsync()
     {
-        // TODO: logout
+        await AuthState.ClearAsync();
+        NavigationManager.NavigateTo("/login");
     }
 }
