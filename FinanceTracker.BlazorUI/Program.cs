@@ -1,6 +1,8 @@
 using Blazored.LocalStorage;
 using FinanceTracker.BlazorUI;
+using FinanceTracker.BlazorUI.Services;
 using FinanceTracker.BlazorUI.Services.Auth;
+using FinanceTracker.BlazorUI.Services.Commons;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
@@ -13,13 +15,24 @@ var apiBaseUri = builder.Configuration.GetValue<string>("ApiBaseUri")
     ?? throw new InvalidOperationException("ApiBaseUrl not configured");
 var apiBaseAddress = new Uri(apiBaseUri);
 
+builder.Services.AddScoped<AuthState>();
+builder.Services.AddScoped<AuthMessageHandler>();
+builder.Services.AddTransient<GlobalHttpErrorHandler>();
+builder.Services.AddScoped<IApiErrorHandler, ApiErrorHandler>();
+
 builder.Services.AddHttpClient<AuthApiClient>(client =>
 {
     client.BaseAddress = apiBaseAddress;
-}).AddHttpMessageHandler<AuthMessageHandler>();
+})
+.AddHttpMessageHandler<AuthMessageHandler>()
+.AddHttpMessageHandler<GlobalHttpErrorHandler>();
 
-builder.Services.AddScoped<AuthState>();
-builder.Services.AddScoped<AuthMessageHandler>();
+builder.Services.AddHttpClient<OperationTypesApiClient>(client =>
+{
+    client.BaseAddress = apiBaseAddress;
+})
+.AddHttpMessageHandler<AuthMessageHandler>()
+.AddHttpMessageHandler<GlobalHttpErrorHandler>();
 
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();

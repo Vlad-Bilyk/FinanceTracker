@@ -1,4 +1,4 @@
-﻿namespace FinanceTracker.BlazorUI.Models.Common;
+﻿namespace FinanceTracker.BlazorUI.Models.Commons;
 
 public class ApiResult
 {
