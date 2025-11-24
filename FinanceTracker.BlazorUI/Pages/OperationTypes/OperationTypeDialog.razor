@@ -1,0 +1,104 @@
+﻿@using FinanceTracker.BlazorUI.Models.Commons
+@using FinanceTracker.BlazorUI.Models.OperationType
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form"
+                 @bind-IsValid="_isFormValid"
+                 Model="Model">
+            <MudStack Spacing="2">
+                <MudTextField T="string"
+                              Label="Name"
+                              @bind-Value="Model.Name"
+                              For="@(() => Model.Name)"
+                              Required="true"
+                              RequiredError="Name is required"
+                              Margin="Margin.Dense" />
+
+                <MudTextField T="string"
+                              Label="Description"
+                              @bind-Value="Model.Description"
+                              For="@(() => Model.Description)"
+                              Lines="1"
+                              AutoGrow="true"
+                              Margin="Margin.Dense" />
+
+                <MudRadioGroup T="OperationKind"
+                               @bind-Value="Model.Kind"
+                               Required="!IsKindReadOnly"
+                               Disabled="IsKindReadOnly">
+                    <MudRadio T="OperationKind"
+                              Value="OperationKind.Income"
+                              Label="Income" />
+                    <MudRadio T="OperationKind"
+                              Value="OperationKind.Expense"
+                              Label="Expense" />
+                </MudRadioGroup>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Color="Color.Default"
+                   Variant="Variant.Text">
+            Cancel
+        </MudButton>
+
+        <MudButton OnClick="SubmitAsync"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_isFormValid || _isSubmitting)">
+            @(_isSubmitting ? "Saving..." : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public OperationTypeFormModel Model { get; set; } = new();
+
+    [Parameter]
+    public bool IsKindReadOnly { get; set; }
+
+    private MudForm? _form;
+    private bool _isFormValid;
+    private bool _isSubmitting;
+
+    private async Task SubmitAsync()
+    {
+        await _form!.Validate();
+
+        if (!_isFormValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

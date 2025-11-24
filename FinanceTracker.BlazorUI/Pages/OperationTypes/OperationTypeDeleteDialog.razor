@@ -1,0 +1,70 @@
+﻿@using FinanceTracker.BlazorUI.Models.OperationType
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            Delete operation type
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.body2">
+                You are going to delete operation type
+                <b>@TypeToDelete.Name</b>.
+                <br />
+                You can optionally select a replacement type.
+                If this type is used in existing operations and no replacement is provided,
+                the request will be rejected.
+            </MudText>
+
+            <MudSelect Label="Replacement type"
+                       @bind-Value="_selectedReplacementId"
+                       Dense="true"
+                       Clearable="true">
+                @foreach (var t in CandidateTypes)
+                {
+                    <MudSelectItem T="Guid?" Value="@t.Id">
+                        @t.Name (@t.Kind)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Default"
+                   Variant="Variant.Text"
+                   OnClick="Cancel">
+            Cancel
+        </MudButton>
+
+        <MudButton Color="Color.Error"
+                   Variant="Variant.Filled"
+                   OnClick="Confirm">
+            Delete
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public OperationTypeDto TypeToDelete { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<OperationTypeDto> CandidateTypes { get; set; } = [];
+
+    private Guid? _selectedReplacementId;
+
+    private void Confirm()
+    {
+        MudDialog.Close(DialogResult.Ok(_selectedReplacementId));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
