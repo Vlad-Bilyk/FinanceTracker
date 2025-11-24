@@ -3,7 +3,7 @@ using FinanceTracker.BlazorUI.Models.Commons;
 using FinanceTracker.BlazorUI.Services.Commons;
 using System.Net.Http.Json;
 
-namespace FinanceTracker.BlazorUI.Services.Auth;
+namespace FinanceTracker.BlazorUI.Services.ApiClients;
 
 public class AuthApiClient
 {

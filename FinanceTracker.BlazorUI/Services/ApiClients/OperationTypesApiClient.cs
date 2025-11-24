@@ -3,7 +3,7 @@ using FinanceTracker.BlazorUI.Models.OperationType;
 using FinanceTracker.BlazorUI.Services.Commons;
 using System.Net.Http.Json;
 
-namespace FinanceTracker.BlazorUI.Services;
+namespace FinanceTracker.BlazorUI.Services.ApiClients;
 
 public class OperationTypesApiClient
 {

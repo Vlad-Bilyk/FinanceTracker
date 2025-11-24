@@ -1,0 +1,88 @@
+﻿@using FinanceTracker.BlazorUI.Models.Wallet
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form"
+                 Model="Model"
+                 @bind-IsValid="_isFormValid">
+
+            <MudStack Spacing="2">
+                <MudTextField T="string"
+                              Label="Name"
+                              @bind-Value="Model.Name"
+                              For="@(() => Model.Name)"
+                              Margin="Margin.Dense" 
+                              Required="true"/>
+                <CurrencySelect Label="Base currency"
+                                HelperText="Type code or name (eg. USD, Euro)"
+                                @bind-Value="Model.BaseCurrencyCode"
+                                Disabled="IsEdit"
+                                Required="!IsEdit"/>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Default"
+                   Variant="Variant.Text"
+                   OnClick="Cancel">
+            Cancel
+        </MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_isFormValid || _isSubmitting)"
+                   OnClick="@SubmitAsync">
+            @(_isSubmitting ? "Saving..." : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public WalletFormModel Model { get; set; } = new();
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+    private bool _isFormValid;
+    private bool _isSubmitting;
+
+    private async Task SubmitAsync()
+    {
+        await _form!.Validate();
+
+        if (!_isFormValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

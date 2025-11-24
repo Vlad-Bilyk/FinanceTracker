@@ -1,9 +1,8 @@
 ﻿@page "/operation-types"
 
-@using FinanceTracker.BlazorUI.Models.OperationType
-@using FinanceTracker.BlazorUI.Models.Commons
-@using FinanceTracker.BlazorUI.Services
 @using System.Threading.Tasks
+@using FinanceTracker.BlazorUI.Models.Commons
+@using FinanceTracker.BlazorUI.Models.OperationType
 
 @inject OperationTypesApiClient OperationTypesApiClient
 @inject ISnackbar Snackbar
@@ -152,11 +151,11 @@
         catch (Exception)
         {
             _loadErrorMessage = "Failed to load operation types.";
-            Snackbar.Add(_loadErrorMessage, Severity.Error);
         }
         finally
         {
             _isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -180,7 +179,7 @@
 
         var result = await ShowUpsertDialogAsync(title, formModel, false);
 
-        if (result!.Canceled)
+        if (result is null || result.Canceled)
         {
             return;
         }
@@ -195,16 +194,7 @@
         };
 
         var apiResult = await OperationTypesApiClient.CreateAsync(createDto);
-
-        if (!apiResult.IsSuccess)
-        {
-            SetErrors(apiResult);
-            Snackbar.Add("Operation type is not created", Severity.Error);
-            return;
-        }
-
-        Snackbar.Add("Operation type created", Severity.Success);
-        await LoadOperationTypesAsync();
+        await ResultProcessingAsync(apiResult, "Operation type created", "Operation type wasn't created");
     }
 
     private async Task OnEditClickedAsync(OperationTypeDto type)
@@ -220,7 +210,7 @@
 
         var result = await ShowUpsertDialogAsync(title, formModel, true);
 
-        if (result!.Canceled)
+        if (result is null || result.Canceled)
         {
             return;
         }
@@ -234,16 +224,7 @@
         };
 
         var apiResult = await OperationTypesApiClient.UpdateAsync(type.Id, updateDto);
-
-        if (!apiResult.IsSuccess)
-        {
-            SetErrors(apiResult);
-            Snackbar.Add("Operation type is not updated", Severity.Error);
-            return;
-        }
-
-        Snackbar.Add("Operation type updated", Severity.Success);
-        await LoadOperationTypesAsync();
+        await ResultProcessingAsync(apiResult, "Operation type updated", "Operation type wasn't updated");
     }
 
     private async Task OnDeleteClickedAsync(OperationTypeDto type)
@@ -264,26 +245,32 @@
 
         var result = await ShowDeleteDialogAsync(type, candidates);
 
-        if (result!.Canceled)
+        if (result is null || result.Canceled)
         {
             return;
         }
 
         var replacementTypeId = (Guid?)result.Data;
         var apiResult = await OperationTypesApiClient.DeleteAsync(type.Id, replacementTypeId);
-
-        if (!apiResult.IsSuccess)
-        {
-            SetErrors(apiResult);
-            Snackbar.Add("Operation type is not deleted", Severity.Error);
-            return;
-        }
-
-        Snackbar.Add("Operation type deleted.", Severity.Success);
-        await LoadOperationTypesAsync();
+        await ResultProcessingAsync(apiResult, "Operation type deleted", "Operation type wasn't deleted");
     }
 
-    private async Task<DialogResult?> ShowUpsertDialogAsync(string title, OperationTypeFormModel formModel, bool isKindReadOnly)
+    private async Task<bool> ResultProcessingAsync(ApiResult apiResult, string successMessage, string failMessage)
+    {
+        if (!apiResult.IsSuccess)
+        {
+            Snackbar.Add(failMessage, Severity.Error);
+            ShowErrors(apiResult);
+            return false;
+        }
+
+        Snackbar.Add(successMessage, Severity.Success);
+        await LoadOperationTypesAsync();
+        return true;
+    }
+
+    private async Task<DialogResult?> ShowUpsertDialogAsync(
+        string title, OperationTypeFormModel formModel, bool isKindReadOnly)
     {
         var parameters = new DialogParameters
         {
@@ -326,13 +313,14 @@
         return await dialog.Result;
     }
 
-    private void SetErrors(ApiResult apiResult)
+    /// <summary>
+    /// Show errors from api
+    /// </summary>
+    private void ShowErrors(ApiResult apiResult)
     {
-        if (apiResult?.GeneralErrors.Length > 0)
+        foreach (var message in apiResult.GeneralErrors)
         {
-            _generalErrors = apiResult.GeneralErrors;
+            Snackbar.Add(message, Severity.Error);
         }
-
-        StateHasChanged();
     }
 }
