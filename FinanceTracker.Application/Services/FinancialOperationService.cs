@@ -1,4 +1,5 @@
-﻿using FinanceTracker.Application.DTOs.Operation;
+﻿using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.DTOs.Operation;
 using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
@@ -31,28 +32,44 @@ public class FinancialOperationService : IFinancialOperationService
     public async Task<FinancialOperationDetailsDto> GetOperationByIdAsync(Guid walletId, Guid id, CancellationToken ct = default)
     {
         var finOperation = await GetValidOperationAsync(walletId, id, ct);
+        _ = await GetValidWalletAsync(walletId, ct);
 
-        // TODO: add mapping with AutoMapper
-        return new FinancialOperationDetailsDto
-        (
-            finOperation.Id, finOperation.TypeId, finOperation.Type.Name, finOperation.Type.Kind,
-            finOperation.WalletId, finOperation.Wallet.Name, finOperation.AmountBase, finOperation.AmountOriginal,
-            finOperation.CurrencyOriginalCode, finOperation.Date, finOperation.Note
-        );
+        return MapToDeatilsDto(finOperation);
     }
 
-    public async Task<IReadOnlyList<FinancialOperationDetailsDto>> GetAllOperationsAsync(Guid walletId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<FinancialOperationDetailsDto>> GetOperationsForWalletAsync(Guid walletId, CancellationToken ct = default)
     {
         _ = await GetValidWalletAsync(walletId, ct); // Checking that the wallet belongs to the user 
 
         var finOperations = await _unitOfWork.FinancialOperations.GetWalletOperationsAsync(walletId, ct);
 
-        return finOperations.Select(op => new FinancialOperationDetailsDto
-        (
-            op.Id, op.TypeId, op.Type.Name, op.Type.Kind,
-            op.WalletId, op.Wallet.Name, op.AmountBase, op.AmountOriginal,
-            op.CurrencyOriginalCode, op.Date, op.Note
-        )).ToList();
+        return finOperations.Select(MapToDeatilsDto).ToList();
+    }
+
+    // TODO: Add tests
+    public async Task<PagedResult<FinancialOperationDetailsDto>> GetUserOperationsAsync(
+        OperationQuery query, CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+
+        if (query.Page <= 0)
+        {
+            query.Page = 1;
+        }
+
+        if (query.PageSize <= 0 || query.PageSize > 100)
+        {
+            query.PageSize = 20;
+        }
+
+        var pagedEntities = await _unitOfWork.FinancialOperations
+            .GetUserOperationsAsync(userId, query, ct);
+
+        var dtoItems = pagedEntities.Items
+            .Select(MapToDeatilsDto).ToList();
+
+        return new PagedResult<FinancialOperationDetailsDto>(
+            dtoItems, pagedEntities.Page, pagedEntities.PageSize, pagedEntities.TotalCount);
     }
 
     public async Task<Guid> CreateOperationAsync(Guid walletId, FinancialOperationUpsertDto createDto, CancellationToken ct = default)
@@ -211,5 +228,23 @@ public class FinancialOperationService : IFinancialOperationService
     private Guid GetCurrentUserId()
     {
         return _userContext.GetRequiredUserId();
+    }
+
+    // TODO: Move to automapper
+    private static FinancialOperationDetailsDto MapToDeatilsDto(FinancialOperation operation)
+    {
+        return new FinancialOperationDetailsDto(
+            operation.Id,
+            operation.TypeId,
+            operation.Type.Name,
+            operation.Type.Kind,
+            operation.WalletId,
+            operation.Wallet.Name,
+            operation.AmountBase,
+            operation.AmountOriginal,
+            operation.CurrencyOriginalCode,
+            operation.Date,
+            operation.Note
+        );
     }
 }

@@ -1,4 +1,6 @@
-﻿using FinanceTracker.Application.Interfaces.Repositories;
+﻿using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.DTOs.Operation;
+using FinanceTracker.Application.Interfaces.Repositories;
 using FinanceTracker.Domain.Entities;
 using FinanceTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +51,44 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         Guid walletId, DateOnly start, DateOnly end, CancellationToken ct = default)
     {
         return await GetOperationsInRangeAsync(walletId, start, end, ct);
+    }
+
+    public async Task<PagedResult<FinancialOperation>> GetUserOperationsAsync(
+        Guid userId, OperationQuery query, CancellationToken ct = default)
+    {
+        var operationsQuery = _context.FinancialOperations
+            .AsNoTracking()
+            .Include(x => x.Type)
+            .Include(x => x.Wallet)
+            .Where(x => x.Wallet.UserId == userId);
+
+        if (query.WalletId.HasValue)
+        {
+            operationsQuery = operationsQuery
+                .Where(x => x.WalletId == query.WalletId.Value);
+        }
+
+        if (query.From.HasValue)
+        {
+            operationsQuery = operationsQuery
+                .Where(x => x.Date >= query.From.Value);
+        }
+
+        if (query.To.HasValue)
+        {
+            operationsQuery = operationsQuery
+                .Where(x => x.Date <= query.To.Value);
+        }
+
+        var totalCount = await operationsQuery.CountAsync(ct);
+
+        var items = await operationsQuery
+            .OrderBy(x => x.Date)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<FinancialOperation>(items, query.Page, query.PageSize, totalCount);
     }
 
     public async Task AddAsync(FinancialOperation entity, CancellationToken ct = default)

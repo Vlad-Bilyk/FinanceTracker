@@ -245,10 +245,10 @@ public class FinancialOperationServiceTests
 
     #endregion
 
-    #region GetAllOperationsAsync Tests
+    #region GetOperationsForWalletAsync Tests
 
     [Fact]
-    public async Task GetAllOperationsAsync_ReturnsAllOperations()
+    public async Task GetOperationsForWalletAsync_ReturnsAllOperations()
     {
         // Arrange
         var walletId = Guid.NewGuid();
@@ -265,7 +265,7 @@ public class FinancialOperationServiceTests
             .ReturnsAsync(operations);
 
         // Act
-        var result = await _sut.GetAllOperationsAsync(walletId);
+        var result = await _sut.GetOperationsForWalletAsync(walletId);
 
         // Assert
         result.Should().HaveCount(2);
@@ -274,7 +274,7 @@ public class FinancialOperationServiceTests
     }
 
     [Fact]
-    public async Task GetAllOperationsAsync_WithEmptyWallet_ReturnsEmptyList()
+    public async Task GetOperationsForWalletAsync_WithEmptyWallet_ReturnsEmptyList()
     {
         // Arrange
         var walletId = Guid.NewGuid();
@@ -286,7 +286,7 @@ public class FinancialOperationServiceTests
             .ReturnsAsync(new List<FinancialOperation>());
 
         // Act
-        var result = await _sut.GetAllOperationsAsync(walletId);
+        var result = await _sut.GetOperationsForWalletAsync(walletId);
 
         // Assert
         result.Should().BeEmpty();

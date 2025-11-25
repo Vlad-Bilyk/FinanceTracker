@@ -1,15 +1,23 @@
 ﻿using FinanceTracker.Application.DTOs;
 using FinanceTracker.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceTracker.Api.Controllers;
 
+/// <summary>
+/// Provides operations with available currecies
+/// </summary>
 [Route("api/currencies")]
+[Authorize]
 [ApiController]
 public class CurrenciesController : ControllerBase
 {
     private readonly ICurrencyService _currencyService;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="CurrenciesController"/>.
+    /// </summary>
     public CurrenciesController(ICurrencyService currencyService)
     {
         _currencyService = currencyService ?? throw new ArgumentNullException(nameof(currencyService));

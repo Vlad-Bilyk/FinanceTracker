@@ -287,7 +287,7 @@ public class WalletServiceTests
     }
 
     [Fact]
-    public async Task CreateWalletAsync_WithUnsupportedCurrency_ThrowsValidationException()
+    public async Task CreateWalletAsync_WithUnsupportedCurrency_ThrowsConflictException()
     {
         // Arrange
         var createDto = new WalletCreateDto
@@ -304,7 +304,7 @@ public class WalletServiceTests
         var act = async () => await _sut.CreateWalletAsync(createDto);
 
         // Assert
-        await act.Should().ThrowAsync<ValidationException>()
+        await act.Should().ThrowAsync<ConflictException>()
             .WithMessage("*XYZ*not supported*");
     }
 
