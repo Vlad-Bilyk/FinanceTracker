@@ -1,7 +1,6 @@
 ﻿@page "/operation-types"
 
 @using System.Threading.Tasks
-@using FinanceTracker.BlazorUI.Models.Commons
 @using FinanceTracker.BlazorUI.Models.OperationType
 
 @inject OperationTypesApiClient OperationTypesApiClient
@@ -40,17 +39,6 @@
                         Add type
                     </MudButton>
                 </MudStack>
-
-                @if (_generalErrors.Length > 0)
-                {
-                    <MudAlert Severity="Severity.Error">
-                        @foreach (var error in _generalErrors)
-                        {
-                            <div>@error</div>
-                        }
-                    </MudAlert>
-                }
-
 
                 @if (_isLoading)
                 {
@@ -128,8 +116,6 @@
     private bool _isLoading;
     private string? _loadErrorMessage;
     private string? _searchTerm;
-
-    private string[] _generalErrors = [];
 
     protected override async Task OnInitializedAsync()
     {

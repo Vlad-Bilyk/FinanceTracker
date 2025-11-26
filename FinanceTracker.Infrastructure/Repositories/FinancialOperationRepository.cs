@@ -83,7 +83,7 @@ public class FinancialOperationRepository : IFinancialOperationRepository
         var totalCount = await operationsQuery.CountAsync(ct);
 
         var items = await operationsQuery
-            .OrderBy(x => x.Date)
+            .OrderByDescending(x => x.Date)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToListAsync(ct);

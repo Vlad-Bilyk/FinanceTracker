@@ -1,0 +1,205 @@
+﻿@using FinanceTracker.BlazorUI.Models.Operation
+@using FinanceTracker.BlazorUI.Models.OperationType
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @Title
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form"
+                 Model="Model"
+                 @bind-IsValid="_isFormValid">
+
+            <MudStack Spacing="2">
+                @if (_typesLoadError is not null)
+                {
+                    <MudAlert Severity="Severity.Error">
+                        @_typesLoadError
+                    </MudAlert>
+                }
+
+                <MudSelect T="Guid"
+                           Label="Operation type"
+                           @bind-Value="Model.TypeId"
+                           For="@(() => Model.TypeId)"
+                           Margin="Margin.Dense"
+                           Required="true"
+                           Disabled="_isLoadingTypes">
+                    @if (_isLoadingTypes)
+                    {
+                        <MudSelectItem Value="@Guid.Empty">
+                            Loading types...
+                        </MudSelectItem>
+                    }
+                    else
+                    {
+                        @foreach (var type in _operationTypes)
+                        {
+                            <MudSelectItem Value="@type.Id">
+                                @type.Name
+                            </MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+
+                <MudNumericField T="decimal"
+                                 Label="Amount"
+                                 @bind-Value="Model.AmountOriginal"
+                                 For="@(() => Model.AmountOriginal)"
+                                 Margin="Margin.Dense"
+                                 Required="true" />
+
+                <CurrencySelect Label="Currency"
+                                HelperText="Type code or name (e.g. USD, EUR)"
+                                @bind-Value="Model.CurrencyOriginalCode"
+                                Required="true" />
+
+                <MudDatePicker Label="Date"
+                               @bind-Date="_datePart"
+                               Margin="Margin.Dense"
+                               Required="true" />
+
+                <MudTimePicker Label="Time"
+                               @bind-Time="_timePart"
+                               Margin="Margin.Dense"
+                               Required="true"/>
+
+                <MudTextField T="string"
+                              Label="Note"
+                              @bind-Value="Model.Note"
+                              For="@(() => Model.Note)"
+                              Margin="Margin.Dense"
+                              Lines="1"
+                              AutoGrow="true" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Default"
+                   Variant="Variant.Text"
+                   OnClick="Cancel">
+            Cancel
+        </MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(!_isFormValid || _isSubmitting || _isLoadingTypes || _operationTypes.Count == 0)"
+                   OnClick="SubmitAsync">
+            @(_isSubmitting ? "Saving..." : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code
+{
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject]
+    private OperationTypesApiClient OperationTypesApiClient { get; set; } = default!;
+
+    [Inject]
+    private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public OperationFormModel Model { get; set; } = new();
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+    private bool _isFormValid;
+    private bool _isSubmitting;
+
+    private IReadOnlyList<OperationTypeDto> _operationTypes = [];
+    private bool _isLoadingTypes;
+    private string? _typesLoadError;
+
+    private DateTime? _datePart
+    {
+        get => Model.Date;
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            var time = Model.Date.TimeOfDay;
+            Model.Date = value.Value.Date + time;
+        }
+    }
+
+    private TimeSpan? _timePart
+    {
+        get => Model.Date.TimeOfDay;
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            var date = Model.Date.Date;
+            Model.Date = date + value.Value;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOperationTypesAsync();
+    }
+
+    private async Task LoadOperationTypesAsync()
+    {
+        _isLoadingTypes = true;
+        _typesLoadError = null;
+
+        try
+        {
+            _operationTypes = await OperationTypesApiClient.GetAllAsync();
+        }
+        catch (Exception)
+        {
+            _typesLoadError = "Failed to load operation types.";
+            Snackbar.Add("Unhandled exception between load types.", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingTypes = false;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        await _form!.Validate();
+
+        if (!_isFormValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

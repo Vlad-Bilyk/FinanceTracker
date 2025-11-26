@@ -1,11 +1,12 @@
 ﻿@page "/wallets"
 
 @using FinanceTracker.BlazorUI.Models.Wallet
-@using FinanceTracker.BlazorUI.Models.Commons
+@using Microsoft.AspNetCore.WebUtilities
 
 @inject WalletsApiClient WalletsApiClient
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 
 <PageTitle>Wallets</PageTitle>
 
@@ -53,7 +54,7 @@
                         <HeaderContent>
                             <MudTh>Name</MudTh>
                             <MudTh>Base currency</MudTh>
-                            <MudTh Style="width: 120px;">Actions</MudTh>
+                            <MudTh Style="width: 150px;">Actions</MudTh>
                         </HeaderContent>
 
                         <RowTemplate>
@@ -66,18 +67,23 @@
                             </MudTd>
 
                             <MudTd DataLabel="Actions">
+                                <MudTooltip Text="View operations">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ListAlt"
+                                                   Color="Color.Secondary"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => OnViewOperationsClicked(context))" />
+                                </MudTooltip>
+
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                Color="Color.Primary"
                                                Size="Size.Small"
-                                               OnClick="@(() => OnEditClicked(context))"
-                                               aria-label="Edit wallet" />
+                                               OnClick="@(() => OnEditClicked(context))" />
 
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                                Color="Color.Error"
                                                Size="Size.Small"
                                                Class="ml-1"
-                                               OnClick="@(() => OnDeleteClicked(context))"
-                                               aria-label="Delete wallet" />
+                                               OnClick="@(() => OnDeleteClicked(context))" />
                             </MudTd>
                         </RowTemplate>
 
@@ -122,6 +128,17 @@
             _isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void OnViewOperationsClicked(WalletDto wallet)
+    {
+        if (wallet is null)
+        {
+            return;
+        }
+
+        var url = QueryHelpers.AddQueryString("/operations", "walletId", wallet.Id.ToString());
+        NavigationManager.NavigateTo(url);
     }
 
     private async Task OnAddClicked()

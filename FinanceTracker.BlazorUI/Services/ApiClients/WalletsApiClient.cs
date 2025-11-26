@@ -1,5 +1,4 @@
 ﻿using FinanceTracker.BlazorUI.Models.Commons;
-using FinanceTracker.BlazorUI.Models.OperationType;
 using FinanceTracker.BlazorUI.Models.Wallet;
 using FinanceTracker.BlazorUI.Services.Commons;
 using System.Net.Http.Json;
@@ -16,6 +15,12 @@ public class WalletsApiClient
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _apiErrorHandler = apiErrorHandler ?? throw new ArgumentNullException(nameof(apiErrorHandler));
+    }
+
+    public async Task<WalletDto?> GetWalletByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var result = await _httpClient.GetFromJsonAsync<WalletDto>($"{_basePath}/{id}", ct);
+        return result;
     }
 
     public async Task<IReadOnlyList<WalletDto>> GetUserWalletsAsync(CancellationToken ct = default)
