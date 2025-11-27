@@ -2,33 +2,32 @@
 @inject AuthState AuthState
 @inject NavigationManager NavigationManager
 
-<MudDrawer @bind-Open="_drawerOpen"
-           ClipMode="DrawerClipMode.Never"
-           Variant="DrawerVariant.Responsive"
-           Elevation="1"
-           Class="mud-width-250">
-    <MudNavMenu>
-        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
-            Home
-        </MudNavLink>
+@if (_isAuthInitialized && AuthState.IsAuthenticated)
+{
+    <MudDrawer @bind-Open="_drawerOpen"
+               ClipMode="DrawerClipMode.Never"
+               Variant="DrawerVariant.Responsive"
+               Elevation="1"
+               Class="mud-width-250">
+        <MudNavMenu>
+            <MudNavLink Href="/wallets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+                Wallets
+            </MudNavLink>
 
-        <MudNavLink Href="/wallets" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">
-            Wallets
-        </MudNavLink>
+            <MudNavLink Href="/operation-types" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">
+                Operation types (Income/Expense)
+            </MudNavLink>
 
-        <MudNavLink Href="/operation-types" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">
-            Operation types (Income/Expense)
-        </MudNavLink>
+            <MudNavLink Href="/operations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ListAlt">
+                Operations
+            </MudNavLink>
 
-        <MudNavLink Href="/operations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ListAlt">
-            Operations
-        </MudNavLink>
-
-        <MudNavLink Href="/reports" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assessment">
-            Reports
-        </MudNavLink>
-    </MudNavMenu>
-</MudDrawer>
+            <MudNavLink Href="/reports" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assessment">
+                Reports
+            </MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+}
 
 <MudAppBar Color="Color.Primary" Elevation="1">
     <MudIconButton Icon="@Icons.Material.Filled.Menu"

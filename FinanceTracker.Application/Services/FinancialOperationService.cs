@@ -47,7 +47,6 @@ public class FinancialOperationService : IFinancialOperationService
         return finOperations.Select(MapToDeatilsDto).ToList();
     }
 
-    // TODO: Add tests
     public async Task<PagedResult<FinancialOperationDetailsDto>> GetUserOperationsAsync(
         OperationQuery query, CancellationToken ct = default)
     {
@@ -248,8 +247,6 @@ public class FinancialOperationService : IFinancialOperationService
     {
         return _userContext.GetRequiredUserId();
     }
-
-    // TODO: Move to automapper
     private static FinancialOperationDetailsDto MapToDeatilsDto(FinancialOperation operation)
     {
         return new FinancialOperationDetailsDto(

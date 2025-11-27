@@ -137,14 +137,24 @@ public class ReportServiceTests
         var dateTime = new DateTime(2025, 11, 12);
 
         var wallet = CreateWallet(id: walletId, name: "Main Wallet", currencyCode: "USD");
+
+        var salaryTypeId = Guid.NewGuid();
+        var freelanceTypeId = Guid.NewGuid();
+        var foodTypeId = Guid.NewGuid();
+        var rentTypeId = Guid.NewGuid();
+
         var operations = new List<FinancialOperation>
         {
-            CreateOperation(walletId: walletId, typeName: "Salary", kind: OperationKind.Income,
-                amountBase: 1200.50m, date: dateTime),
-            CreateOperation(walletId: walletId, typeName: "Food", kind: OperationKind.Expense,
-                amountBase: 150.10m, date: dateTime),
-            CreateOperation(walletId: walletId, typeName: "Food", kind: OperationKind.Expense,
-                amountBase: 49.90m, date: dateTime, note: "Snacks")
+            CreateOperation(walletId: walletId, typeId: salaryTypeId, typeName: "Salary",
+                kind: OperationKind.Income, amountBase: 1000m, date: dateTime),
+            CreateOperation(walletId: walletId, typeId: freelanceTypeId, typeName: "Freelance",
+                kind: OperationKind.Income, amountBase: 500m, date: dateTime),
+            CreateOperation(walletId: walletId, typeId: foodTypeId, typeName: "Food",
+                kind: OperationKind.Expense, amountBase: 150.10m, date: dateTime),
+            CreateOperation(walletId: walletId, typeId: foodTypeId, typeName: "Food",
+                kind: OperationKind.Expense, amountBase: 49.90m, date: dateTime),
+            CreateOperation(walletId: walletId, typeId: rentTypeId, typeName: "Rent",
+                kind: OperationKind.Expense, amountBase: 400m, date: dateTime)
         };
 
         SetupValidWallet(walletId, wallet);
@@ -155,20 +165,26 @@ public class ReportServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.WalletId.Should().Be(walletId);
-        result.WalletName.Should().Be("Main Wallet");
-        result.CurrencyCode.Should().Be("USD");
-        result.Start.Should().Be(date);
-        result.End.Should().Be(date);
-        result.TotalIncome.Should().Be(1200.50m);
-        result.TotalExpense.Should().Be(200.00m); // 150.10 + 49.90
-        result.Net.Should().Be(1000.50m); // 1200.50 - 200.00
-        result.Operations.Should().HaveCount(3);
+        result.TotalIncome.Should().Be(1500m);
+        result.TotalExpense.Should().Be(600m); // 150.10 + 49.90 + 400
+        result.Net.Should().Be(900m);
 
-        var incomeOp = result.Operations.First(o => o.Kind == OperationKind.Income);
-        incomeOp.TypeName.Should().Be("Salary");
-        incomeOp.AmountBase.Should().Be(1200.50m);
-        incomeOp.Date.Should().Be(dateTime);
+        result.IncomeByCategory.Should().HaveCount(2);
+        result.ExpensesByCategory.Should().HaveCount(2);
+
+        var salaryCategory = result.IncomeByCategory.Single(c => c.TypeName == "Salary");
+        salaryCategory.Amount.Should().Be(1000m);
+        salaryCategory.TypeId.Should().Be(salaryTypeId);
+
+        var freelanceCategory = result.IncomeByCategory.Single(c => c.TypeName == "Freelance");
+        freelanceCategory.Amount.Should().Be(500m);
+        freelanceCategory.TypeId.Should().Be(freelanceTypeId);
+
+        var foodCategory = result.ExpensesByCategory.Single(c => c.TypeName == "Food");
+        foodCategory.Amount.Should().Be(200m); // 150.10 + 49.90
+
+        var rentCategory = result.ExpensesByCategory.Single(c => c.TypeName == "Rent");
+        rentCategory.Amount.Should().Be(400m);
     }
 
     [Fact]
@@ -189,7 +205,8 @@ public class ReportServiceTests
         result.TotalIncome.Should().Be(0m);
         result.TotalExpense.Should().Be(0m);
         result.Net.Should().Be(0m);
-        result.Operations.Should().BeEmpty();
+        result.IncomeByCategory.Should().BeEmpty();
+        result.ExpensesByCategory.Should().BeEmpty();
     }
 
     [Fact]
@@ -238,11 +255,28 @@ public class ReportServiceTests
 
         // Assert
         result.TotalIncome.Should().Be(1000m);
-        result.TotalExpense.Should().Be(108m); // Uses AmountBase (converted)
+        result.TotalExpense.Should().Be(108m);
+        result.Net.Should().Be(892m);
 
-        var eurOperation = result.Operations.First(o => o.CurrencyOriginalCode == "EUR");
-        eurOperation.AmountOriginal.Should().Be(100m);
-        eurOperation.AmountBase.Should().Be(108m);
+        result.IncomeByCategory.Should().ContainSingle(c => c.TypeName == "Salary" && c.Amount == 1000m);
+        result.ExpensesByCategory.Should().ContainSingle(c => c.TypeName == "Shopping" && c.Amount == 108m);
+    }
+
+    [Fact]
+    public async Task CreateDailyReportAsync_WhenUserContextThrows_PropagatesException()
+    {
+        // Arrange
+        var walletId = Guid.NewGuid();
+        var date = new DateOnly(2025, 11, 12);
+
+        _userContextMock.Setup(c => c.GetRequiredUserId())
+            .Throws(new UnauthorizedAccessException("User not authenticated"));
+
+        // Act
+        var act = async () => await _sut.CreateDailyReportAsync(walletId, date);
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
     #endregion
@@ -256,15 +290,16 @@ public class ReportServiceTests
         var walletId = Guid.NewGuid();
         var start = new DateOnly(2025, 11, 10);
         var end = new DateOnly(2025, 11, 12);
+        var travelTypeId = Guid.NewGuid();
 
         var wallet = CreateWallet(id: walletId, name: "Main Wallet", currencyCode: "EUR");
         var operations = new List<FinancialOperation>
         {
             CreateOperation(walletId: walletId, typeName: "Salary", kind: OperationKind.Income,
                 amountBase: 1000m, date: new DateTime(2025, 11, 10)),
-            CreateOperation(walletId: walletId, typeName: "Travel", kind: OperationKind.Expense,
+            CreateOperation(walletId: walletId, typeId: travelTypeId, typeName: "Travel", kind: OperationKind.Expense,
                 amountBase: 300m, date: new DateTime(2025, 11, 11)),
-            CreateOperation(walletId: walletId, typeName: "Travel", kind: OperationKind.Expense,
+            CreateOperation(walletId: walletId, typeId: travelTypeId, typeName: "Travel", kind: OperationKind.Expense,
                 amountBase: 200m, date: new DateTime(2025, 11, 12))
         };
 
@@ -276,15 +311,12 @@ public class ReportServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.WalletId.Should().Be(walletId);
-        result.WalletName.Should().Be("Main Wallet");
-        result.CurrencyCode.Should().Be("EUR");
-        result.Start.Should().Be(start);
-        result.End.Should().Be(end);
         result.TotalIncome.Should().Be(1000m);
         result.TotalExpense.Should().Be(500m);
         result.Net.Should().Be(500m);
-        result.Operations.Should().HaveCount(3);
+
+        result.IncomeByCategory.Should().ContainSingle(c => c.TypeName == "Salary" && c.Amount == 1000m);
+        result.ExpensesByCategory.Should().ContainSingle(c => c.TypeName == "Travel" && c.Amount == 500m);
     }
 
     [Fact]
@@ -307,10 +339,9 @@ public class ReportServiceTests
         var result = await _sut.CreatePeriodReportAsync(walletId, date, date);
 
         // Assert
-        result.Start.Should().Be(date);
-        result.End.Should().Be(date);
+        result.TotalIncome.Should().Be(0m);
         result.TotalExpense.Should().Be(50m);
-        result.Operations.Should().HaveCount(1);
+        result.Net.Should().Be(-50m);
     }
 
     [Fact]
@@ -331,7 +362,8 @@ public class ReportServiceTests
         result.TotalIncome.Should().Be(0m);
         result.TotalExpense.Should().Be(0m);
         result.Net.Should().Be(0m);
-        result.Operations.Should().BeEmpty();
+        result.IncomeByCategory.Should().BeEmpty();
+        result.ExpensesByCategory.Should().BeEmpty();
     }
 
     [Fact]
@@ -400,6 +432,9 @@ public class ReportServiceTests
         result.TotalIncome.Should().Be(6500m);
         result.TotalExpense.Should().Be(0m);
         result.Net.Should().Be(6500m);
+
+        result.IncomeByCategory.Should().HaveCount(2);
+        result.ExpensesByCategory.Should().BeEmpty();
     }
 
     [Fact]
@@ -430,10 +465,6 @@ public class ReportServiceTests
         result.Net.Should().Be(-1500m);
     }
 
-    #endregion
-
-    #region Edge Cases Tests
-
     [Fact]
     public async Task CreatePeriodReportAsync_WithLargeDateRange_HandlesCorrectly()
     {
@@ -457,26 +488,9 @@ public class ReportServiceTests
         var result = await _sut.CreatePeriodReportAsync(walletId, start, end);
 
         // Assert
-        result.Start.Should().Be(start);
-        result.End.Should().Be(end);
-        result.Operations.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public async Task CreateDailyReportAsync_WhenUserContextThrows_PropagatesException()
-    {
-        // Arrange
-        var walletId = Guid.NewGuid();
-        var date = new DateOnly(2025, 11, 12);
-
-        _userContextMock.Setup(c => c.GetRequiredUserId())
-            .Throws(new UnauthorizedAccessException("User not authenticated"));
-
-        // Act
-        var act = async () => await _sut.CreateDailyReportAsync(walletId, date);
-
-        // Assert
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        result.TotalIncome.Should().Be(0m);
+        result.TotalExpense.Should().Be(3000m);
+        result.Net.Should().Be(-3000m);
     }
 
     #endregion

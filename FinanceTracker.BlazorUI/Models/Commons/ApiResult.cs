@@ -4,15 +4,11 @@ public class ApiResult
 {
     public bool IsSuccess { get; }
     public string[] GeneralErrors { get; }
-    public IDictionary<string, string[]>? FieldErrors { get; }
 
-    public ApiResult(bool isSuccess,
-        IEnumerable<string>? generalErrors = null,
-        IDictionary<string, string[]>? fieldErrors = null)
+    public ApiResult(bool isSuccess, IEnumerable<string>? generalErrors = null)
     {
         IsSuccess = isSuccess;
         GeneralErrors = generalErrors?.ToArray() ?? [];
-        FieldErrors = fieldErrors ?? new Dictionary<string, string[]>();
     }
 
     public static ApiResult Success()
@@ -20,9 +16,8 @@ public class ApiResult
         return new ApiResult(true);
     }
 
-    public static ApiResult Failure(IEnumerable<string>? generalErrors = null,
-        IDictionary<string, string[]>? fieldErrors = null)
+    public static ApiResult Failure(IEnumerable<string>? generalErrors = null)
     {
-        return new ApiResult(false, generalErrors, fieldErrors);
+        return new ApiResult(false, generalErrors);
     }
 }

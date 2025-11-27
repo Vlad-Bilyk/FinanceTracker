@@ -21,18 +21,20 @@
                     </MudAlert>
                 }
 
-                <MudSelect Label="Operation type"
+                <MudSelect T="Guid"
+                           Label="Operation type"
                            @bind-Value="Model.TypeId"
                            For="@(() => Model.TypeId)"
                            Margin="Margin.Dense"
                            Required="true"
                            Disabled="_isLoadingTypes"
-                           Placeholder="Choose type">
+                           Placeholder="Choose type"
+                           ToStringFunc="FormatTypeLabel">
 
                         @foreach (var type in _operationTypes)
                         {
                             <MudSelectItem Value="@type.Id">
-                                @type.Name
+                                @type.Name (@type.Kind)
                             </MudSelectItem>
                         }
                 </MudSelect>
@@ -193,5 +195,21 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private string FormatTypeLabel(Guid typeId)
+    {
+        if (typeId == Guid.Empty)
+        {
+            return "";
+        }
+
+        var type = _operationTypes.FirstOrDefault(t => t.Id == typeId);
+        if (type is null)
+        {
+            return typeId.ToString();
+        }
+
+        return $"{type.Name} ({type.Kind})";
     }
 }

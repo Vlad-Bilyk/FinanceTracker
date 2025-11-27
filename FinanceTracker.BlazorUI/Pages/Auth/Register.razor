@@ -23,42 +23,26 @@
                     Register to start tracking your finances
                 </MudText>
 
-                @if(_generalErrors.Length > 0)
-                {
-                    <MudAlert Severity="Severity.Error">
-                        @foreach (var error in _generalErrors)
-                        {
-                            <div>@error</div>
-                        }
-                    </MudAlert>
-                }
-
                 <MudForm @ref="_form" Model="_model" @bind-IsValid="_isFormValid">
                     <MudStack Spacing="2">
                         <MudTextField T="string"
-                                      Value="_model.UserName"
-                                      ValueChanged="OnUserNameChanged"
+                                      @bind-Value="_model.UserName"
                                       For="@(() => _model.UserName)"
                                       Label="Username"
                                       Variant="Variant.Outlined"
                                       Adornment="Adornment.Start"
                                       Required="true"
-                                      RequiredError="Username is required" 
-                                      Error="HasError(nameof(RegisterRequest.UserName))"
-                                      ErrorText="@GetErrorText(nameof(RegisterRequest.UserName))"/>
+                                      RequiredError="Username is required" />
 
                         <MudTextField T="string"
-                                      Value="_model.Password"
-                                      ValueChanged="OnPasswordChanged"
+                                      @bind-Value="_model.Password"
                                       For="@(() => _model.Password)"
                                       Label="Password"
                                       Variant="Variant.Outlined"
                                       Adornment="Adornment.Start"
                                       InputType="InputType.Password"
                                       Required="true"
-                                      RequiredError="Password is required" 
-                                      Error="HasError(nameof(RegisterRequest.Password))"
-                                      ErrorText="@GetErrorText(nameof(RegisterRequest.Password))"/>
+                                      RequiredError="Password is required" />
 
                         <MudButton Color="Color.Primary"
                                    Variant="Variant.Filled"
@@ -86,17 +70,10 @@
     private bool _isSubmitting;
     private bool _isFormValid;
 
-    // Server errors (validation, conflict, etc.)
-    private readonly Dictionary<string, string[]> _fieldErrors = new(StringComparer.OrdinalIgnoreCase);
-    private string[] _generalErrors = [];
-
     private string _buttonText => _isSubmitting ? "Registering..." : "Register";
 
     private async Task SubmitAsync()
     {
-        _fieldErrors.Clear();
-        _generalErrors = [];
-
         await _form!.Validate();
         if (!_isFormValid)
         {
@@ -111,7 +88,10 @@
 
             if (!result.IsSuccess)
             {
-                SetErrors(result);
+                foreach (var err in result.GeneralErrors)
+                {
+                    Snackbar.Add(err, Severity.Error);
+                }
                 return;
             }
 
@@ -122,68 +102,5 @@
         {
             _isSubmitting = false;
         }
-    }
-
-    private void OnUserNameChanged(string value)
-    {
-        _model.UserName = value;
-        ClearFieldError(nameof(RegisterRequest.UserName));
-    }
-
-    private void OnPasswordChanged(string value)
-    {
-        _model.Password = value;
-        ClearFieldError(nameof(RegisterRequest.Password));
-    }
-
-    private void ClearFieldError(string propertyName)
-    {
-        if (_fieldErrors.Remove(propertyName))
-        {
-            StateHasChanged();
-        }
-    }
-
-
-    private void SetErrors(ApiResult result)
-    {
-        if (result?.FieldErrors?.Count > 0)
-        {
-            foreach (var kvp in result.FieldErrors)
-            {
-                var propertyName = MapToPropertyName(kvp.Key);
-                _fieldErrors[propertyName] = kvp.Value;
-            }
-        }
-
-        if (result?.GeneralErrors.Length > 0)
-        {
-            _generalErrors = result.GeneralErrors;
-        }
-
-        StateHasChanged();
-    }
-
-    private static string MapToPropertyName(string key)
-    {
-        return key.ToLowerInvariant() switch
-        {
-            "username" => nameof(RegisterRequest.UserName),
-            "userName" => nameof(RegisterRequest.UserName),
-            "password" => nameof(RegisterRequest.Password),
-            _ => key
-        };
-    }
-
-    private bool HasError(string propertyName)
-    {
-        return _fieldErrors.ContainsKey(propertyName);
-    }
-
-    private string GetErrorText(string propertyName)
-    {
-        return _fieldErrors.TryGetValue(propertyName, out var messages)
-            ? string.Join("\n", messages)
-            : string.Empty;
     }
 }

@@ -35,7 +35,6 @@ public class GlobalHttpErrorHandler : DelegatingHandler
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
         {
-            // TODO: add navigation to /500 page
             _snackbar.Add("Server error occurred. Please try again later.", Severity.Error);
             return response;
         }

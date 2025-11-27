@@ -1,4 +1,5 @@
-﻿using FinanceTracker.Application.DTOs.Operation;
+﻿using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.DTOs.Operation;
 using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
@@ -6,6 +7,7 @@ using FinanceTracker.Application.Interfaces.Services;
 using FinanceTracker.Application.Services;
 using FinanceTracker.Domain.Entities;
 using FinanceTracker.Domain.Enums;
+using FinanceTracker.Infrastructure.Repositories;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
@@ -290,6 +292,167 @@ public class FinancialOperationServiceTests
 
         // Assert
         result.Should().BeEmpty();
+    }
+
+    #endregion
+
+    #region GetUserOperationsAsync
+
+    [Fact]
+    public async Task GetUserOperationsAsync_WithValidQuery_ReturnsMappedPagedResult()
+    {
+        // Arrange
+        var query = new OperationQuery
+        {
+            WalletId = _defaultWalletId,
+            From = new DateTime(2025, 11, 1),
+            To = new DateTime(2025, 11, 30),
+            Page = 2,
+            PageSize = 10
+        };
+
+        var operations = new List<FinancialOperation>
+        {
+            CreateOperation(id: Guid.NewGuid(), walletId: _defaultWalletId, amountBase: 100m),
+            CreateOperation(id: Guid.NewGuid(), walletId: _defaultWalletId, amountBase: 200m)
+        };
+
+        var pagedEntities = new PagedResult<FinancialOperation>(
+            operations,
+            page: query.Page,
+            pageSize: query.PageSize,
+            totalCount: 25);
+
+        _opRepositoryMock
+            .Setup(r => r.GetUserOperationsAsync(
+                _defaultUserId,
+                It.Is<OperationQuery>(q =>
+                    q.Page == query.Page &&
+                    q.PageSize == query.PageSize &&
+                    q.WalletId == query.WalletId &&
+                    q.From == query.From &&
+                    q.To == query.To),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pagedEntities);
+
+        // Act
+        var result = await _sut.GetUserOperationsAsync(query);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Page.Should().Be(2);
+        result.PageSize.Should().Be(10);
+        result.TotalCount.Should().Be(25);
+        result.Items.Should().HaveCount(2);
+
+        // Test mapping
+        result.Items.Select(o => o.Id).Should().BeEquivalentTo(operations.Select(e => e.Id));
+        result.Items.Select(o => o.WalletId).Should().AllBeEquivalentTo(_defaultWalletId);
+        result.Items.Select(o => o.AmountBase).Should().BeEquivalentTo(operations.Select(e => e.AmountBase));
+
+        _userContextMock.Verify(c => c.GetRequiredUserId(), Times.Once);
+        _opRepositoryMock.Verify(r =>
+            r.GetUserOperationsAsync(_defaultUserId, It.IsAny<OperationQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GetUserOperationsAsync_WithInvalidPageAndPageSize_NormalizesAndUsesDefaults()
+    {
+        // Arrange
+        var originalQuery = new OperationQuery
+        {
+            WalletId = _defaultWalletId,
+            Page = 0,         // invalid
+            PageSize = 0      // invalid
+        };
+
+        OperationQuery? usedQuery = null;
+
+        var operations = new List<FinancialOperation>
+        {
+            CreateOperation(amountBase: 123m)
+        };
+
+        var pagedEntities = new PagedResult<FinancialOperation>(
+            operations,
+            page: 1,
+            pageSize: 20,
+            totalCount: 1);
+
+        _opRepositoryMock
+            .Setup(r => r.GetUserOperationsAsync(
+                _defaultUserId,
+                It.IsAny<OperationQuery>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Guid, OperationQuery, CancellationToken>((_, q, _) => usedQuery = q)
+            .ReturnsAsync(pagedEntities);
+
+        // Act
+        var result = await _sut.GetUserOperationsAsync(originalQuery);
+
+        // Assert
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(20);
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().HaveCount(1);
+
+        usedQuery.Should().NotBeNull();
+        usedQuery!.Page.Should().Be(1);
+        usedQuery.PageSize.Should().Be(20);
+
+        _opRepositoryMock.Verify(r =>
+            r.GetUserOperationsAsync(_defaultUserId, It.IsAny<OperationQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GetUserOperationsAsync_WithTooLargePageSize_NormalizesToDefault()
+    {
+        // Arrange
+        var originalQuery = new OperationQuery
+        {
+            Page = 1,
+            PageSize = 500 // > 100, should be 20
+        };
+
+        OperationQuery? usedQuery = null;
+
+        var operations = new List<FinancialOperation>
+        {
+            CreateOperation(amountBase: 50m),
+            CreateOperation(amountBase: 60m)
+        };
+
+        var pagedEntities = new PagedResult<FinancialOperation>(
+            operations,
+            page: 1,
+            pageSize: 20,
+            totalCount: 2);
+
+        _opRepositoryMock
+            .Setup(r => r.GetUserOperationsAsync(
+                _defaultUserId,
+                It.IsAny<OperationQuery>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Guid, OperationQuery, CancellationToken>((_, q, _) => usedQuery = q)
+            .ReturnsAsync(pagedEntities);
+
+        // Act
+        var result = await _sut.GetUserOperationsAsync(originalQuery);
+
+        // Assert
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(20);
+        result.Items.Should().HaveCount(2);
+
+        usedQuery.Should().NotBeNull();
+        usedQuery!.Page.Should().Be(1);
+        usedQuery.PageSize.Should().Be(20);
+
+        _opRepositoryMock.Verify(r =>
+            r.GetUserOperationsAsync(_defaultUserId, It.IsAny<OperationQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     #endregion

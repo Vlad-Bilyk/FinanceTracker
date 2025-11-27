@@ -20,18 +20,6 @@ public class ApiErrorHandler : IApiErrorHandler
 
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>(cancellationToken);
 
-        if (problem?.Errors?.Count > 0)
-        {
-            var fieldErrors = new Dictionary<string, string[]>();
-
-            foreach (var kvp in problem.Errors)
-            {
-                fieldErrors[kvp.Key] = kvp.Value;
-            }
-
-            return ApiResult.Failure(null, fieldErrors);
-        }
-
         if (!string.IsNullOrWhiteSpace(problem?.Detail))
         {
             return ApiResult.Failure([problem.Detail]);

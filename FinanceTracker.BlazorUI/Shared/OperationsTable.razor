@@ -21,9 +21,7 @@
         <MudTh>Kind</MudTh>
         <MudTh>Amount (base)</MudTh>
         <MudTh>Currency</MudTh>
-        <MudTh Style="max-width: 200px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">
-            Note
-        </MudTh>
+        <MudTh>Note</MudTh>
         @if (ShowActions)
         {
             <MudTh Style="width: 120px;">Actions</MudTh>
@@ -60,7 +58,11 @@
         </MudTd>
 
         <MudTd DataLabel="Note">
-            @context.Note
+            <div style="display: -webkit-box; -webkit-line-clamp: 3;
+                        -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;"
+                 title="@context.Note">
+                @context.Note
+            </div>
         </MudTd>
 
         @if (ShowActions)
@@ -124,9 +126,6 @@
     [Parameter] public bool AutoReloadOnParameterChanged { get; set; }
 
     private MudTable<OperationDetailsDto>? _table;
-    private Guid? _previousWalletId;
-    private DateTime? _previousFrom;
-    private DateTime? _previousTo;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -141,7 +140,9 @@
     public async Task ReloadAsync()
     {
         if (_table is not null)
+        {
             await _table.ReloadServerData();
+        }
     }
 
     private async Task<TableData<OperationDetailsDto>> LoadDataAsync(
@@ -161,7 +162,7 @@
                 TotalItems = result.TotalCount
             };
         }
-        catch (OperationCanceledException)
+        catch(OperationCanceledException)
         {
             throw;
         }
@@ -179,4 +180,7 @@
 
     private string? GetWalletBaseCurrency(OperationDetailsDto operation)
         => Wallets.FirstOrDefault(w => w.Id == operation.WalletId)?.BaseCurrencyCode;
+
+    private int GetDetailsColSpan()
+        => ShowActions ? 9 : 8;
 }
