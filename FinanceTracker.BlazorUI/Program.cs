@@ -64,6 +64,13 @@ builder.Services.AddHttpClient<ReportsApiClient>(client =>
 .AddHttpMessageHandler<AuthMessageHandler>()
 .AddHttpMessageHandler<GlobalHttpErrorHandler>();
 
+builder.Services.AddHttpClient<UsersApiClient>(client =>
+{
+    client.BaseAddress = apiBaseAddress;
+})
+.AddHttpMessageHandler<AuthMessageHandler>()
+.AddHttpMessageHandler<GlobalHttpErrorHandler>();
+
 // Packages
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();

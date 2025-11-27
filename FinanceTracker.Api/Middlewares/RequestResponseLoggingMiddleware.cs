@@ -10,7 +10,8 @@ internal sealed class RequestResponseLoggingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
-    private static readonly string[] _sensitiveFields = ["password", "jwtToken", "apiKey"];
+    private static readonly string[] _sensitiveFields = [
+        "password", "jwtToken", "apiKey", "currentPassword", "newPassword"];
 
     private const int _maxBodyLogLength = 2000;
     private const string _truncationMessage = "... [TRUNCATED]";

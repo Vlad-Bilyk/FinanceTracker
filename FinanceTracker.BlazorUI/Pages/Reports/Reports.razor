@@ -297,33 +297,11 @@
         {
             if (_activeTabIndex == 0)
             {
-                var dailyDate = DateOnly.FromDateTime(_dailyDate!.Value);
-                var financeReport = await ReportsApiClient.GetDailyReportAsync(
-                    _selectedWalletId!.Value, dailyDate);
-
-                _financeReport = financeReport;
+                await GetDailyReportAsync();
             }
             else
             {
-                if (!_fromDate.HasValue || !_toDate.HasValue)
-                {
-                    Snackbar.Add("Please select both start and end dates.", Severity.Warning);
-                    return;
-                }
-
-                if (_fromDate > _toDate)
-                {
-                    Snackbar.Add("'From' date must be earlier than 'To' date.", Severity.Warning);
-                    return;
-                }
-
-                var fromDate = DateOnly.FromDateTime(_fromDate.Value);
-                var toDate = DateOnly.FromDateTime(_toDate.Value);
-
-                var financeReport = await ReportsApiClient.GetPeriodReportAsync(
-                    _selectedWalletId!.Value, fromDate, toDate);
-
-                _financeReport = financeReport;
+                await GetPeriodReportAsync();
             }
 
             if (_financeReport == null)
@@ -345,6 +323,38 @@
         {
             _isLoading = false;
         }
+    }
+
+    private async Task GetDailyReportAsync()
+    {
+        var dailyDate = DateOnly.FromDateTime(_dailyDate!.Value);
+        var financeReport = await ReportsApiClient.GetDailyReportAsync(
+            _selectedWalletId!.Value, dailyDate);
+
+        _financeReport = financeReport;
+    }
+
+    private async Task GetPeriodReportAsync()
+    {
+        if (!_fromDate.HasValue || !_toDate.HasValue)
+        {
+            Snackbar.Add("Please select both start and end dates.", Severity.Warning);
+            return;
+        }
+
+        if (_fromDate > _toDate)
+        {
+            Snackbar.Add("'From' date must be earlier than 'To' date.", Severity.Warning);
+            return;
+        }
+
+        var fromDate = DateOnly.FromDateTime(_fromDate.Value);
+        var toDate = DateOnly.FromDateTime(_toDate.Value);
+
+        var financeReport = await ReportsApiClient.GetPeriodReportAsync(
+            _selectedWalletId!.Value, fromDate, toDate);
+
+        _financeReport = financeReport;
     }
 
     private async Task ClearFiltersAsync()
