@@ -21,28 +21,20 @@
                     </MudAlert>
                 }
 
-                <MudSelect T="Guid"
-                           Label="Operation type"
+                <MudSelect Label="Operation type"
                            @bind-Value="Model.TypeId"
                            For="@(() => Model.TypeId)"
                            Margin="Margin.Dense"
                            Required="true"
-                           Disabled="_isLoadingTypes">
-                    @if (_isLoadingTypes)
-                    {
-                        <MudSelectItem Value="@Guid.Empty">
-                            Loading types...
-                        </MudSelectItem>
-                    }
-                    else
-                    {
+                           Disabled="_isLoadingTypes"
+                           Placeholder="Choose type">
+
                         @foreach (var type in _operationTypes)
                         {
                             <MudSelectItem Value="@type.Id">
                                 @type.Name
                             </MudSelectItem>
                         }
-                    }
                 </MudSelect>
 
                 <MudNumericField T="decimal"
@@ -169,7 +161,7 @@
         catch (Exception)
         {
             _typesLoadError = "Failed to load operation types.";
-            Snackbar.Add("Unhandled exception between load types.", Severity.Error);
+            Snackbar.Add("Unhandled exception while load types.", Severity.Error);
         }
         finally
         {

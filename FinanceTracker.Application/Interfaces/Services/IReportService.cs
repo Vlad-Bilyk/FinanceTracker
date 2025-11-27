@@ -1,4 +1,4 @@
-﻿using FinanceTracker.Application.DTOs;
+﻿using FinanceTracker.Application.DTOs.Report;
 
 namespace FinanceTracker.Application.Interfaces.Services;
 

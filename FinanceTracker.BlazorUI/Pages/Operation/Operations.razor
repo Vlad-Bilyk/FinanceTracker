@@ -47,10 +47,10 @@
                                        Margin="Margin.Dense"
                                        Class="mr-2"
                                        Disabled="_isLoadingFilters">
-                                <MudSelectItem T="Guid ?" Value="@((Guid?)null)">All wallets</MudSelectItem>
+                                <MudSelectItem T="Guid?" Value="@((Guid?)null)">All wallets</MudSelectItem>
                                 @foreach (var wallet in _wallets)
                                 {
-                                    <MudSelectItem T="Guid ?" Value="@wallet.Id">
+                                    <MudSelectItem T="Guid?" Value="@wallet.Id">
                                         @wallet.Name (@wallet.BaseCurrencyCode)
                                     </MudSelectItem>
                                 }
@@ -92,82 +92,15 @@
                 </MudPaper>
 
                 <!-- Table -->
-                <MudTable T="OperationDetailsDto"
-                          @ref="_table"
-                          ServerData="LoadOperationsAsync"
-                          Hover="true"
-                          Dense="true"
-                          Elevation="0"
-                          FixedHeader="true"
-                          Bordered="false">
-                    <HeaderContent>
-                        <MudTh>Date</MudTh>
-                        <MudTh>Time</MudTh>
-                        <MudTh>Wallet</MudTh>
-                        <MudTh>Type</MudTh>
-                        <MudTh>Kind</MudTh>
-                        <MudTh>Amount (base)</MudTh>
-                        <MudTh>Currency</MudTh>
-                        <MudTh Style="max-width: 200px;">Note</MudTh>
-                        <MudTh Style="width: 120px;">Actions</MudTh>
-                    </HeaderContent>
-
-                    <RowTemplate>
-                        <MudTd DataLabel="Date">
-                            @context.Date.ToString("yyyy-MM-dd")
-                        </MudTd>
-
-                        <MudTd DataLabel="Time">
-                            @context.Date.ToShortTimeString()
-                        </MudTd>
-
-                        <MudTd DataLabel="Wallet">
-                            @context.WalletName
-                        </MudTd>
-
-                        <MudTd DataLabel="Type">
-                            @context.TypeName
-                        </MudTd>
-
-                        <MudTd DataLabel="Kind">
-                            @context.Kind
-                        </MudTd>
-
-                        <MudTd DataLabel="Amount (base)">
-                            @context.AmountBase.ToString("0.##")
-                        </MudTd>
-
-                        <MudTd DataLabel="Currency">
-                            @(context.CurrencyOriginalCode ?? GetWalletBaseCurrency(context) ?? string.Empty) 
-                        </MudTd>
-
-                        <MudTd DataLabel="Note">
-                            @context.Note
-                        </MudTd>
-
-                        <MudTd DataLabel="Actions">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                           Color="Color.Primary"
-                                           Size="Size.Small"
-                                           OnClick="@(() => OnEditClickedAsync(context))" />
-
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Color="Color.Error"
-                                           Size="Size.Small"
-                                           Class="ml-1"
-                                           OnClick="@(() => OnDeleteClickedAsync(context))" />
-                        </MudTd>
-                    </RowTemplate>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-
-                    <NoRecordsContent>
-                        <MudText Typo="Typo.body2" Class="py-4 px-2">
-                            No operations found for selected filters.
-                        </MudText>
-                    </NoRecordsContent>
-                </MudTable>
+                <OperationsTable WalletId="_selectedWalletId"
+                                 From="_fromDate"
+                                 To="_toDate"
+                                 Wallets="_wallets"
+                                 ShowActions="true"
+                                 EditClicked="OnEditClickedAsync"
+                                 DeleteClicked="OnDeleteClickedAsync"
+                                 AutoReloadOnParameterChanged="true"
+                                 @ref="_operationsTable" />
             </MudStack>
         </MudPaper>
     </MudItem>
@@ -182,7 +115,7 @@
     private DateTime? _toDate;
 
     private bool _isLoadingFilters;
-    private MudTable<OperationDetailsDto>? _table;
+    private OperationsTable? _operationsTable;
 
     protected override async Task OnInitializedAsync()
     {
@@ -197,8 +130,6 @@
         {
             _isLoadingFilters = false;
         }
-
-        await ReloadTableAsync();
     }
 
     private async Task LoadWalletsAsync()
@@ -225,50 +156,19 @@
         }
     }
 
-    private async Task<TableData<OperationDetailsDto>> LoadOperationsAsync(TableState state, CancellationToken cancellationToken)
-    {
-        var page = state.Page + 1;
-        var pageSize = state.PageSize;
-
-        try
-        {
-            var result = await OperationsApiClient.GetPagedAsync(
-                _selectedWalletId, _fromDate, _toDate, page, pageSize);
-
-            return new TableData<OperationDetailsDto>
-            {
-                Items = result.Items,
-                TotalItems = result.TotalCount
-            };
-        }
-        catch (Exception)
-        {
-            Snackbar.Add("Failed to load operations.", Severity.Error);
-
-            return new TableData<OperationDetailsDto>
-            {
-                Items = [],
-                TotalItems = 0
-            };
-        }
-    }
-
     private async Task OnWalletChangedAsync(Guid? walletId)
     {
         _selectedWalletId = walletId;
-        await ReloadTableAsync();
     }
 
     private async Task OnToDateChangedAsync(DateTime? newValue)
     {
         _toDate = newValue;
-        await ReloadTableAsync();
     }
 
     private async Task OnFromDateChangedAsync(DateTime? newValue)
     {
         _fromDate = newValue;
-        await ReloadTableAsync();
     }
 
     private async Task ClearFiltersAsync()
@@ -276,14 +176,15 @@
         _selectedWalletId = null;
         _fromDate = null;
         _toDate = null;
-        await ReloadTableAsync();
+
+        NavigationManager.NavigateTo("/operations", replace: true);
     }
 
     private async Task ReloadTableAsync()
     {
-        if (_table is not null)
+        if (_operationsTable is not null)
         {
-            await _table.ReloadServerData();
+            await _operationsTable.ReloadAsync();
         }
     }
 

@@ -1,0 +1,365 @@
+﻿@page "/reports"
+
+@using FinanceTracker.BlazorUI.Models.Report
+@using FinanceTracker.BlazorUI.Models.Wallet
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject WalletsApiClient WalletsApiClient
+@inject ReportsApiClient ReportsApiClient
+@inject ISnackbar Snackbar
+
+<PageTitle>Reports</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-6">
+    <MudItem xs="12" md="11" lg="10">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudStack Spacing="3">
+                <!-- Header -->
+                <MudText Typo="Typo.h5">
+                    Reports
+                </MudText>
+
+                <!-- Filters -->
+                <MudPaper Class="pa-3" Elevation="1">
+                    <MudStack Spacing="2">
+
+                        <MudStack Row="true"
+                                  Spacing="2"
+                                  AlignItems="AlignItems.Center">
+                            <!-- Wallet select -->
+                            <MudSelect T="Guid?"
+                                       Label="Wallet"
+                                       Dense="true"
+                                       Margin="Margin.Dense"
+                                       Value="_selectedWalletId"
+                                       ValueChanged="OnWalletChanged"
+                                       Disabled="_isLoading"
+                                       Required="true"
+                                       RequiredError="Wallet is required"
+                                       Placeholder="Choose wallet">
+
+                                @foreach (var wallet in _wallets)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@wallet.Id">
+                                        @wallet.Name (@wallet.BaseCurrencyCode)
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+
+                        <!-- Mode tabs -->
+                        <MudStack Row="true"
+                                  Spacing="2"
+                                  AlignItems="AlignItems.Center">
+                            <MudTabs @bind-ActivePanelIndex="_activeTabIndex"
+                                     Class="ml-2">
+                                <MudTabPanel Text="Daily" />
+                                <MudTabPanel Text="Period" />
+                            </MudTabs>
+                        </MudStack>
+
+                        <!-- Date filters -->
+                        @if (_activeTabIndex == 0)
+                        {
+                            <!-- Daily -->
+                            <MudStack Row="true"
+                                      Spacing="2"
+                                      AlignItems="AlignItems.Center">
+                                <MudDatePicker Label="Date"
+                                               @bind-Date="_dailyDate"
+                                               Margin="Margin.Dense"
+                                               Disabled="_isLoading"
+                                               Required="true"
+                                               RequiredError="Date is required"/>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <!-- Period -->
+                            <MudStack Row="true"
+                                      Spacing="2"
+                                      AlignItems="AlignItems.Center">
+                                <MudDatePicker Label="From"
+                                               @bind-Date="_fromDate"
+                                               MaxDate="_toDate"
+                                               Margin="Margin.Dense"
+                                               Disabled="_isLoading" />
+
+                                <MudDatePicker Label="To"
+                                               @bind-Date="_toDate"
+                                               MinDate="_fromDate"
+                                               Margin="Margin.Dense"
+                                               Disabled="_isLoading" />
+                            </MudStack>
+                        }
+
+                        <!-- Buttons -->
+                        <MudStack Row="true"
+                                  Spacing="2"
+                                  AlignItems="AlignItems.Center"
+                                  Justify="Justify.FlexEnd">
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Default"
+                                       Disabled="_isLoading"
+                                       OnClick="ClearFiltersAsync">
+                                Clear
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Disabled="_isLoading"
+                                       OnClick="ApplyAsync">
+                                @(_isLoading ? "Loading..." : "Apply")
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Summary -->
+                @if (_financeReport is not null)
+                {
+                    <MudGrid Class="mt-2">
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Success">
+                                    Total income
+                                </MudText>
+                                <MudText Typo="Typo.h6">
+                                    @FormatAmount(_financeReport.TotalIncome)
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Error">
+                                    Total expenses
+                                </MudText>
+                                <MudText Typo="Typo.h6">
+                                    @FormatAmount(_financeReport.TotalExpense)
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.subtitle2">
+                                    Net result
+                                </MudText>
+                                <MudText Typo="Typo.h6"
+                                         Color="@(_financeReport.Net >= 0 ? Color.Success : Color.Error)">
+                                    @FormatAmount(_financeReport.Net)
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+
+                        <!-- Charts -->
+                        <MudItem xs="12" md="6">
+                            <MudCard>
+                                <MudCardHeader>
+                                    <MudText Typo="Typo.h6" Color="Color.Success">Income by categories</MudText>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudChart ChartType="ChartType.Donut"
+                                                InputData="@_incomeCategoryValues"
+                                                InputLabels="@_incomeCategoryLabels"
+                                                Width="300px" Height="300px" />
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudCard>
+                                <MudCardHeader>
+                                    <MudText Typo="Typo.h6" Color="Color.Error">Expenses by categories</MudText>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudChart ChartType="ChartType.Donut"
+                                                InputData="@_expenseCategoryValues"
+                                                InputLabels="@_expenseCategoryLabels"
+                                                Width="300px" Height="300px" />
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+
+                        <!-- Table -->
+                        <MudItem xs="12" md="12">
+                            <MudText Typo="Typo.h6" Class="pa-3">
+                                Operations in selected period
+                            </MudText>
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <OperationsTable WalletId="_selectedWalletId"
+                                                 From="@(_fromDate ?? _dailyDate)"
+                                                 To="@(_toDate ?? _dailyDate!.Value.AddDays(1))"
+                                                 Wallets="_wallets"
+                                                 ShowActions="false"
+                                                 AutoReloadOnParameterChanged="false"
+                                                 @ref="_operationsTable" />
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Select filters and click <b>Apply</b> to see the report summary.
+                    </MudText>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    // Donut chart data
+    private double[] _incomeCategoryValues = [];
+    private string[] _incomeCategoryLabels = [];
+
+    private double[] _expenseCategoryValues = [];
+    private string[] _expenseCategoryLabels = [];
+
+    private IReadOnlyList<WalletDto> _wallets = [];
+    private Guid? _selectedWalletId;
+
+    // 0 - Daily, 1 - Period
+    private int _activeTabIndex = 0;
+
+    // Daily mode
+    private DateTime? _dailyDate = DateTime.Today;
+
+    // Period mode
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+
+    private bool _isLoading;
+    private FinanceReportDto? _financeReport;
+    private OperationsTable? _operationsTable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _wallets = await WalletsApiClient.GetUserWalletsAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnWalletChanged(Guid? walletId)
+    {
+        _selectedWalletId = walletId;
+    }
+
+    private async Task ReloadTableAsync()
+    {
+        if (_operationsTable is not null)
+        {
+            await _operationsTable.ReloadAsync();
+        }
+    }
+
+    private void BuidCharts()
+    {
+        if (_financeReport == null)
+        {
+            return;
+        }
+
+        _incomeCategoryLabels = _financeReport.IncomeByCategory.Select(x => x.TypeName).ToArray();
+        _incomeCategoryValues = _financeReport.IncomeByCategory.Select(x => (double)x.Amount).ToArray();
+
+        _expenseCategoryLabels = _financeReport.ExpensesByCategory.Select(x => x.TypeName).ToArray();
+        _expenseCategoryValues = _financeReport.ExpensesByCategory.Select(x => (double)x.Amount).ToArray();
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_wallets.Count == 0)
+        {
+            Snackbar.Add("You don't have any wallets yet.", Severity.Warning);
+            return;
+        }
+
+        if (!_selectedWalletId.HasValue)
+        {
+            Snackbar.Add("Please select a wallet first.", Severity.Warning);
+            return;
+        }
+
+        _isLoading = true;
+        _financeReport = null;
+
+        try
+        {
+            if (_activeTabIndex == 0)
+            {
+                var dailyDate = DateOnly.FromDateTime(_dailyDate!.Value);
+                var financeReport = await ReportsApiClient.GetDailyReportAsync(
+                    _selectedWalletId!.Value, dailyDate);
+
+                _financeReport = financeReport;
+            }
+            else
+            {
+                if (!_fromDate.HasValue || !_toDate.HasValue)
+                {
+                    Snackbar.Add("Please select both start and end dates.", Severity.Warning);
+                    return;
+                }
+
+                if (_fromDate > _toDate)
+                {
+                    Snackbar.Add("'From' date must be earlier than 'To' date.", Severity.Warning);
+                    return;
+                }
+
+                var fromDate = DateOnly.FromDateTime(_fromDate.Value);
+                var toDate = DateOnly.FromDateTime(_toDate.Value);
+
+                var financeReport = await ReportsApiClient.GetPeriodReportAsync(
+                    _selectedWalletId!.Value, fromDate, toDate);
+
+                _financeReport = financeReport;
+            }
+
+            if (_financeReport == null)
+            {
+                Snackbar.Add("No data for selected filters.", Severity.Info);
+            }
+            else
+            {
+                BuidCharts();
+            }
+
+            await ReloadTableAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to load report.", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _activeTabIndex = 0;
+        _dailyDate = DateTime.Today;
+        _fromDate = null;
+        _toDate = null;
+        _financeReport = null;
+        _selectedWalletId = null;
+        _operationsTable = null;
+    }
+
+    private string FormatAmount(decimal value)
+    {
+        return value.ToString("0.##");
+    }
+}

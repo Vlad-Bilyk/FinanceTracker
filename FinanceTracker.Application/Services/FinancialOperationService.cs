@@ -17,6 +17,7 @@ public class FinancialOperationService : IFinancialOperationService
     private readonly IValidator<FinancialOperationUpsertDto> _upsertValidator;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<FinancialOperationService> _logger;
+    private const string _noteSeparator = "\n--- System Info ---\n";
 
     public FinancialOperationService(IUnitOfWork unitOfWork, IUserContext userContext,
         IValidator<FinancialOperationUpsertDto> upsertValidator, IExchangeRateService exchangeRateService,
@@ -97,7 +98,7 @@ public class FinancialOperationService : IFinancialOperationService
             AmountOriginal = createDto.AmountOriginal,
             CurrencyOriginalCode = createDto.CurrencyOriginalCode,
             Date = createDto.Date,
-            Note = note.Trim()
+            Note = note
         };
 
         await _unitOfWork.FinancialOperations.AddAsync(finOperation, ct);
@@ -189,9 +190,11 @@ public class FinancialOperationService : IFinancialOperationService
         }
     }
 
-    private static string BuildOperationNote(string? userNote, decimal amountOriginal,
+    private static string BuildOperationNote(string? currentNote, decimal amountOriginal,
         string currencyOriginalCode, string baseCurrencyCode, decimal exchangeRate)
     {
+        var userNote = ExtractUserNote(currentNote);
+
         var originalInfo =
             $"Original amount: {amountOriginal} {currencyOriginalCode}, " +
             $"exchange rate {exchangeRate:F4} {baseCurrencyCode}/{currencyOriginalCode}.";
@@ -201,7 +204,23 @@ public class FinancialOperationService : IFinancialOperationService
             return originalInfo;
         }
 
-        return $"{userNote.Trim()}\n{originalInfo}";
+        return $"{userNote}{_noteSeparator}{originalInfo}";
+    }
+
+    private static string ExtractUserNote(string? currentNote)
+    {
+        if (string.IsNullOrWhiteSpace(currentNote))
+        {
+            return string.Empty;
+        }
+
+        var separatorIndex = currentNote.IndexOf(_noteSeparator);
+        if (separatorIndex <= 0)
+        {
+            return currentNote;
+        }
+
+        return currentNote.Substring(0, separatorIndex).Trim();
     }
 
     private static bool ShouldRecalculateExchangeRate(FinancialOperation existing, FinancialOperationUpsertDto dto)

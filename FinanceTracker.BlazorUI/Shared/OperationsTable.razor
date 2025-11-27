@@ -1,0 +1,182 @@
+﻿@using FinanceTracker.BlazorUI.Models.Operation
+@using FinanceTracker.BlazorUI.Models.Wallet
+
+@inject OperationsApiClient OperationsApiClient
+@inject ISnackbar Snackbar
+
+<MudTable T="OperationDetailsDto"
+          @ref="_table"
+          ServerData="LoadDataAsync"
+          Hover="true"
+          Dense="true"
+          Elevation="0"
+          FixedHeader="true"
+          Bordered="false">
+
+    <HeaderContent>
+        <MudTh>Date</MudTh>
+        <MudTh>Time</MudTh>
+        <MudTh>Wallet</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Kind</MudTh>
+        <MudTh>Amount (base)</MudTh>
+        <MudTh>Currency</MudTh>
+        <MudTh Style="max-width: 200px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">
+            Note
+        </MudTh>
+        @if (ShowActions)
+        {
+            <MudTh Style="width: 120px;">Actions</MudTh>
+        }
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Date">
+            @context.Date.ToString("d")
+        </MudTd>
+
+        <MudTd DataLabel="Time">
+            @context.Date.ToString("t")
+        </MudTd>
+
+        <MudTd DataLabel="Wallet">
+            @context.WalletName
+        </MudTd>
+
+        <MudTd DataLabel="Type">
+            @context.TypeName
+        </MudTd>
+
+        <MudTd DataLabel="Kind">
+            @context.Kind
+        </MudTd>
+
+        <MudTd DataLabel="Amount (base)">
+            @context.AmountBase.ToString("0.##")
+        </MudTd>
+
+        <MudTd DataLabel="Currency">
+            @(context.CurrencyOriginalCode ?? GetWalletBaseCurrency(context) ?? string.Empty)
+        </MudTd>
+
+        <MudTd DataLabel="Note">
+            @context.Note
+        </MudTd>
+
+        @if (ShowActions)
+        {
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="@(() => EditClicked.InvokeAsync(context))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               Class="ml-1"
+                               OnClick="@(() => DeleteClicked.InvokeAsync(context))" />
+            </MudTd>
+        }
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="py-4 px-2">
+            No operations found for selected filters.
+        </MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code
+{
+    [Parameter] public Guid? WalletId { get; set; }
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+
+    /// <summary>
+    /// Wallets list.
+    /// </summary>
+    [Parameter] public IReadOnlyList<WalletDto> Wallets { get; set; } = [];
+
+    /// <summary>
+    /// Show actions column (Edit / Delete).
+    /// </summary>
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    /// <summary>
+    /// Callback while press Edit.
+    /// </summary>
+    [Parameter] public EventCallback<OperationDetailsDto> EditClicked { get; set; }
+
+    /// <summary>
+    /// Callback while press Delete.
+    /// </summary>
+    [Parameter] public EventCallback<OperationDetailsDto> DeleteClicked { get; set; }
+
+    /// <summary>
+    /// If true, table will automatically reload when parameters change.
+    /// If false, manual reload via ReloadAsync() is required.
+    /// </summary>
+    [Parameter] public bool AutoReloadOnParameterChanged { get; set; }
+
+    private MudTable<OperationDetailsDto>? _table;
+    private Guid? _previousWalletId;
+    private DateTime? _previousFrom;
+    private DateTime? _previousTo;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!AutoReloadOnParameterChanged)
+        {
+            return;
+        }
+
+        await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        if (_table is not null)
+            await _table.ReloadServerData();
+    }
+
+    private async Task<TableData<OperationDetailsDto>> LoadDataAsync(
+        TableState state, CancellationToken cancellationToken)
+    {
+        var page = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        try
+        {
+            var result = await OperationsApiClient.GetPagedAsync(
+                WalletId, From, To, page, pageSize, cancellationToken);
+
+            return new TableData<OperationDetailsDto>
+            {
+                Items = result.Items,
+                TotalItems = result.TotalCount
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to load operations.", Severity.Error);
+
+            return new TableData<OperationDetailsDto>
+            {
+                Items = [],
+                TotalItems = 0
+            };
+        }
+    }
+
+    private string? GetWalletBaseCurrency(OperationDetailsDto operation)
+        => Wallets.FirstOrDefault(w => w.Id == operation.WalletId)?.BaseCurrencyCode;
+}
