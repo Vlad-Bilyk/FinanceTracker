@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: finance-tracker-db
+    environment:
+      POSTGRES_DB: FinanceTrackerDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "0000"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d FinanceTrackerDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - finance-tracker-network
+
+  api:
+    build:
+      context: .
+      dockerfile: FinanceTracker.Api/Dockerfile
+    container_name: financetracker-api
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultDbConnection: "Host=db;Port=5432;Database=FinanceTrackerDb;Username=postgres;Password=0000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - finance-tracker-network
+       
+volumes:
+    pgdata:
+    
+    
+networks:
+  finance-tracker-network:
+    driver: bridge
