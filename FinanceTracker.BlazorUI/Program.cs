@@ -18,9 +18,10 @@ builder.Services.AddTransient<GlobalHttpErrorHandler>();
 builder.Services.AddScoped<IApiErrorHandler, ApiErrorHandler>();
 
 // Http clients
-var apiBaseUri = builder.Configuration.GetValue<string>("ApiBaseUri")
+var apiBaseUrl = Environment.GetEnvironmentVariable("ApiBaseUrl")
+    ?? builder.Configuration.GetValue<string>("ApiBaseUrl")
     ?? throw new InvalidOperationException("ApiBaseUrl not configured");
-var apiBaseAddress = new Uri(apiBaseUri);
+var apiBaseAddress = new Uri(apiBaseUrl);
 
 builder.Services.AddHttpClient<AuthApiClient>(client =>
 {

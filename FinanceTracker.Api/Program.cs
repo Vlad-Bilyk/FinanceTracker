@@ -174,7 +174,10 @@ try
         options.AddDefaultPolicy(policy =>
             policy.AllowAnyHeader()
                   .AllowAnyMethod()
-                  .WithOrigins("http://localhost:5022"));
+                  .WithOrigins(
+                        "http://localhost:5022", // VS
+                        "http://localhost:8081" // Docker
+                  ));
     });
 
     var app = builder.Build();
