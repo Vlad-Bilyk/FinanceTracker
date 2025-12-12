@@ -12,12 +12,13 @@ namespace FinanceTracker.Application.Services;
 
 public class FinancialOperationService : IFinancialOperationService
 {
+    private const string NoteSeparator = "\n--- System Info ---\n";
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserContext _userContext;
     private readonly IValidator<FinancialOperationUpsertDto> _upsertValidator;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<FinancialOperationService> _logger;
-    private const string _noteSeparator = "\n--- System Info ---\n";
 
     public FinancialOperationService(IUnitOfWork unitOfWork, IUserContext userContext,
         IValidator<FinancialOperationUpsertDto> upsertValidator, IExchangeRateService exchangeRateService,
@@ -50,16 +51,22 @@ public class FinancialOperationService : IFinancialOperationService
     public async Task<PagedResult<FinancialOperationDetailsDto>> GetUserOperationsAsync(
         OperationQuery query, CancellationToken ct = default)
     {
+        const int MinPageSize = 0;
+        const int MaxPageSize = 100;
+        const int StandartPageSize = 20;
+        const int MinPageNumber = 1;
+        const int StandartPageNumber = 1;
+
         var userId = GetCurrentUserId();
 
-        if (query.Page <= 0)
+        if (query.Page < MinPageNumber)
         {
-            query.Page = 1;
+            query.Page = StandartPageNumber;
         }
 
-        if (query.PageSize <= 0 || query.PageSize > 100)
+        if (query.PageSize <= MinPageSize || query.PageSize > MaxPageSize)
         {
-            query.PageSize = 20;
+            query.PageSize = StandartPageSize;
         }
 
         var pagedEntities = await _unitOfWork.FinancialOperations
@@ -156,6 +163,11 @@ public class FinancialOperationService : IFinancialOperationService
             finOperation.Id, walletId);
     }
 
+    private Guid GetCurrentUserId()
+    {
+        return _userContext.GetRequiredUserId();
+    }
+
     private async Task<FinancialOperation> GetValidOperationAsync(Guid walletId, Guid operationId, CancellationToken ct = default)
     {
         _ = await GetValidWalletAsync(walletId, ct); // Checking that the wallet belongs to the user 
@@ -203,7 +215,7 @@ public class FinancialOperationService : IFinancialOperationService
             return originalInfo;
         }
 
-        return $"{userNote}{_noteSeparator}{originalInfo}";
+        return $"{userNote}{NoteSeparator}{originalInfo}";
     }
 
     private static string ExtractUserNote(string? currentNote)
@@ -213,40 +225,19 @@ public class FinancialOperationService : IFinancialOperationService
             return string.Empty;
         }
 
-        var separatorIndex = currentNote.IndexOf(_noteSeparator);
-        if (separatorIndex <= 0)
-        {
-            return currentNote;
-        }
-
-        return currentNote.Substring(0, separatorIndex).Trim();
+        var separatorIndex = currentNote.IndexOf(NoteSeparator);
+        return separatorIndex > 0
+            ? currentNote[..separatorIndex].Trim()
+            : currentNote;
     }
 
     private static bool ShouldRecalculateExchangeRate(FinancialOperation existing, FinancialOperationUpsertDto dto)
     {
-        if (existing.AmountOriginal != dto.AmountOriginal)
-        {
-            return true;
-        }
-
-        if (!string.Equals(existing.CurrencyOriginalCode,
-            dto.CurrencyOriginalCode, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (existing.Date != dto.Date)
-        {
-            return true;
-        }
-
-        return false;
+        return existing.AmountOriginal != dto.AmountOriginal
+            || !string.Equals(existing.CurrencyOriginalCode, dto.CurrencyOriginalCode, StringComparison.OrdinalIgnoreCase)
+            || existing.Date != dto.Date;
     }
 
-    private Guid GetCurrentUserId()
-    {
-        return _userContext.GetRequiredUserId();
-    }
     private static FinancialOperationDetailsDto MapToDeatilsDto(FinancialOperation operation)
     {
         return new FinancialOperationDetailsDto(

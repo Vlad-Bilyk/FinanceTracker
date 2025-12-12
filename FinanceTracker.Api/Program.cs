@@ -171,13 +171,13 @@ try
     // Configure CORS
     builder.Services.AddCors(options =>
     {
+        var allowedOrigins = builder.Configuration
+            .GetSection("AllowedOrigins").Get<string[]>() ?? [];
+
         options.AddDefaultPolicy(policy =>
             policy.AllowAnyHeader()
                   .AllowAnyMethod()
-                  .WithOrigins(
-                        "http://localhost:5022", // VS
-                        "http://localhost:8081" // Docker
-                  ));
+                  .WithOrigins(allowedOrigins));
     });
 
     var app = builder.Build();

@@ -198,10 +198,14 @@
             return;
         }
 
+        var wallet = _wallets.FirstOrDefault(w => w.Id == _selectedWalletId);
+        var baseCurrency = wallet?.BaseCurrencyCode ?? string.Empty;
+
         var model = new OperationFormModel
         {
             Date = DateTime.Now,
-            WalletId = _selectedWalletId.Value
+            WalletId = _selectedWalletId.Value,
+            CurrencyOriginalCode = baseCurrency
         };
 
         var dialogResult = await ShowUpsertDialogAsync("Create operation", model, false);

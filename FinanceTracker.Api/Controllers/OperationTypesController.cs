@@ -1,4 +1,5 @@
 ﻿using FinanceTracker.Application.DTOs.OperationType;
+using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -101,10 +102,16 @@ public class OperationTypesController : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteType(Guid id, Guid? replacementTypeId, CancellationToken ct)
     {
-        await _operationTypeService.DeleteTypeAsync(id, replacementTypeId, ct);
-        return NoContent();
+        try
+        {
+            await _operationTypeService.DeleteTypeAsync(id, replacementTypeId, ct);
+            return NoContent();
+        }
+        catch (NotFoundException)
+        {
+            return NoContent();
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using FinanceTracker.Application.DTOs.Wallet;
+using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -102,7 +103,14 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteWallet(Guid id, CancellationToken ct)
     {
-        await _walletService.DeleteWalletAsync(id, ct);
-        return NoContent();
+        try
+        {
+            await _walletService.DeleteWalletAsync(id, ct);
+            return NoContent();
+        }
+        catch (NotFoundException)
+        {
+            return NoContent();
+        }
     }
 }
