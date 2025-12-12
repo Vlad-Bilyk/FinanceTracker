@@ -28,7 +28,7 @@ using System.Text.Json.Serialization;
 
 // Serilog
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
+    .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware", LogEventLevel.Fatal)
@@ -168,6 +168,18 @@ try
         options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
     });
 
+    // Configure CORS
+    builder.Services.AddCors(options =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("AllowedOrigins").Get<string[]>() ?? [];
+
+        options.AddDefaultPolicy(policy =>
+            policy.AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithOrigins(allowedOrigins));
+    });
+
     var app = builder.Build();
 
     // Apply migrations and seed the database
@@ -195,6 +207,7 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseCors();
 
     app.UseAuthentication();
     app.UseAuthorization();

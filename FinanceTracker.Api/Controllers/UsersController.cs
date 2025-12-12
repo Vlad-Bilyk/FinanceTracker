@@ -1,4 +1,5 @@
 ﻿using FinanceTracker.Application.DTOs.User;
+using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -97,11 +98,17 @@ public class UsersController : ControllerBase
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
     {
-        await _userService.DeleteUserAsync(id, ct);
-        return NoContent();
+        try
+        {
+            await _userService.DeleteUserAsync(id, ct);
+            return NoContent();
+        }
+        catch (NotFoundException)
+        {
+            return NoContent();
+        }
     }
 
     /// <summary>

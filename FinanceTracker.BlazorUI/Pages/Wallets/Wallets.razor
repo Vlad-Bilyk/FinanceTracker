@@ -1,0 +1,259 @@
+﻿@page "/wallets"
+@page "/"
+
+@using FinanceTracker.BlazorUI.Models.Wallet
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject WalletsApiClient WalletsApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Wallets</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-6">
+    <MudItem xs="12" md="10" lg="8">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h5">
+                    Wallets
+                </MudText>
+
+                <MudStack Row="true"
+                          Justify="Justify.FlexEnd"
+                          AlignItems="AlignItems.Center">
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Disabled="_isLoading"
+                               OnClick="OnAddClicked">
+                        Add wallet
+                    </MudButton>
+                </MudStack>
+
+                @if (_isLoading)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-6">
+                        <MudProgressCircular Indeterminate="true" />
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Loading wallets...
+                        </MudText>
+                    </MudStack>
+                }
+                else if (_loadErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error">
+                        @_loadErrorMessage
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="_wallets"
+                              Hover="true"
+                              Dense="true"
+                              Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Base currency</MudTh>
+                            <MudTh Style="width: 150px;">Actions</MudTh>
+                        </HeaderContent>
+
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">
+                                @context.Name
+                            </MudTd>
+
+                            <MudTd DataLabel="Base currency">
+                                @context.BaseCurrencyCode
+                            </MudTd>
+
+                            <MudTd DataLabel="Actions">
+                                <MudTooltip Text="View operations">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ListAlt"
+                                                   Color="Color.Secondary"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => OnViewOperationsClicked(context))" />
+                                </MudTooltip>
+
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OnEditClicked(context))" />
+
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               Class="ml-1"
+                                               OnClick="@(() => OnDeleteClicked(context))" />
+                            </MudTd>
+                        </RowTemplate>
+
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="py-4 px-2">
+                                No wallets found.
+                            </MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    private IReadOnlyList<WalletDto> _wallets = Array.Empty<WalletDto>();
+    private bool _isLoading;
+    private string? _loadErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWalletsAsync();
+    }
+
+    private async Task LoadWalletsAsync()
+    {
+        _isLoading = true;
+        _loadErrorMessage = null;
+
+        try
+        {
+            _wallets = await WalletsApiClient.GetUserWalletsAsync();
+        }
+        catch (Exception)
+        {
+            _loadErrorMessage = "Failed to load wallets.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnViewOperationsClicked(WalletDto wallet)
+    {
+        if (wallet is null)
+        {
+            return;
+        }
+
+        var url = QueryHelpers.AddQueryString("/operations", "walletId", wallet.Id.ToString());
+        NavigationManager.NavigateTo(url);
+    }
+
+    private async Task OnAddClicked()
+    {
+        var model = new WalletFormModel();
+        var title = "Create wallet";
+
+        var result = await ShowUpsertDialogAsync(title, model, false);
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var formModel = (WalletFormModel)result.Data!;
+
+        var createDto = new WalletCreateDto
+        {
+            Name = formModel.Name,
+            BaseCurrencyCode = formModel.BaseCurrencyCode
+        };
+
+        var apiResult = await WalletsApiClient.CreateAsync(createDto);
+        await ResultProcessingAsync(apiResult, "Wallet created", "Wallet wasn't created");
+    }
+
+    private async Task OnEditClicked(WalletDto wallet)
+    {
+        var model = new WalletFormModel
+        {
+            Id = wallet.Id,
+            Name = wallet.Name,
+            BaseCurrencyCode = wallet.BaseCurrencyCode
+        };
+        var title = "Edit wallet";
+
+        var result = await ShowUpsertDialogAsync(title, model, true);
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var formModel = (WalletFormModel)result.Data!;
+        var updateDto = new WalletUpdateDto
+        {
+            Name = formModel.Name
+        };
+
+        var apiResult = await WalletsApiClient.UpdateAsync(wallet.Id, updateDto);
+        await ResultProcessingAsync(apiResult, "Wallet updated", "Wallet wasn't updated");
+    }
+
+    private async Task OnDeleteClicked(WalletDto wallet)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Delete wallet",
+            $"Are you sure you want to delete wallet '{wallet.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel",
+            options: new DialogOptions { CloseButton = true });
+
+        if (confirmed is not true)
+        {
+            return;
+        }
+
+        var apiResult = await WalletsApiClient.DeleteAsync(wallet.Id);
+        await ResultProcessingAsync(apiResult, "Wallet deleted", "Wallet wasn't deleted");
+    }
+
+    private async Task<DialogResult?> ShowUpsertDialogAsync(
+        string title, WalletFormModel formModel, bool isEdit)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(WalletDialog.Title), title },
+            { nameof(WalletDialog.Model), formModel },
+            { nameof(WalletDialog.IsEdit), isEdit }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<WalletDialog>(title, parameters, options);
+        return await dialog.Result;
+    }
+
+    private async Task<bool> ResultProcessingAsync(ApiResult apiResult, string successMessage, string failMessage)
+    {
+        if (!apiResult.IsSuccess)
+        {
+            Snackbar.Add(failMessage, Severity.Error);
+            ShowErrors(apiResult);
+            return false;
+        }
+
+        Snackbar.Add(successMessage, Severity.Success);
+        await LoadWalletsAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Show errors from api
+    /// </summary>
+    private void ShowErrors(ApiResult apiResult)
+    {
+        foreach (var message in apiResult.GeneralErrors)
+        {
+            Snackbar.Add(message, Severity.Error);
+        }
+    }
+}

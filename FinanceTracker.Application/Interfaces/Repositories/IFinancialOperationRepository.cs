@@ -1,4 +1,6 @@
-﻿using FinanceTracker.Domain.Entities;
+﻿using FinanceTracker.Application.DTOs;
+using FinanceTracker.Application.DTOs.Operation;
+using FinanceTracker.Domain.Entities;
 
 namespace FinanceTracker.Application.Interfaces.Repositories;
 
@@ -9,8 +11,10 @@ public interface IFinancialOperationRepository
     Task<IReadOnlyList<FinancialOperation>> GetWalletOperationsAsync(Guid walletId, CancellationToken ct = default);
     Task<IReadOnlyList<FinancialOperation>> GetListByDateAsync(Guid walletId, DateOnly date, CancellationToken ct = default);
     Task<IReadOnlyList<FinancialOperation>> GetListByPeriodAsync(Guid walletId, DateOnly start, DateOnly end, CancellationToken ct = default);
+    Task<PagedResult<FinancialOperation>> GetUserOperationsAsync(Guid userId, OperationQuery query, CancellationToken ct = default);
     Task AddAsync(FinancialOperation entity, CancellationToken ct = default);
-    Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct);
+    Task<IReadOnlyList<FinancialOperation>> GetByTypeIdAsync(Guid typeId, CancellationToken ct = default);
+    Task<bool> AnyByTypeIdAsync(Guid typeId, CancellationToken ct = default);
     void Update(FinancialOperation entity);
 
     /// <summary>

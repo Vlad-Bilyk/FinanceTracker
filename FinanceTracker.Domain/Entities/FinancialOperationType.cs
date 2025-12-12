@@ -13,7 +13,6 @@ public class FinancialOperationType
     /// Indicates whether the operation type is an income or an expense.
     /// </summary>
     public OperationKind Kind { get; set; }
-    public bool IsDeleted { get; set; }
 
     public User User { get; set; } = null!;
     public ICollection<FinancialOperation> Operations { get; set; } = [];

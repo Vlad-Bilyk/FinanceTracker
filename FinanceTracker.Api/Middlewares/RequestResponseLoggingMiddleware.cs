@@ -10,7 +10,11 @@ internal sealed class RequestResponseLoggingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
-    private static readonly string[] _sensitiveFields = ["password", "jwtToken", "apiKey"];
+    private static readonly string[] _sensitiveFields = [
+        "password", "jwtToken", "apiKey", "currentPassword", "newPassword"];
+
+    private const int _maxBodyLogLength = 2000;
+    private const string _truncationMessage = "... [TRUNCATED]";
 
     public RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<RequestResponseLoggingMiddleware> logger)
     {
@@ -72,6 +76,7 @@ internal sealed class RequestResponseLoggingMiddleware
 
         var requestBody = await ReadRequestBodyAsync(context.Request);
         var sanitizedBody = RedactSensitiveData(requestBody);
+        var truncatedBody = TruncateBody(sanitizedBody);
 
         _logger.LogInformation(
            "HTTP Request: {Method} {Path} {QueryString} | " +
@@ -81,13 +86,14 @@ internal sealed class RequestResponseLoggingMiddleware
            request.Path.Value,
            request.QueryString.HasValue ? request.QueryString.Value : "",
            request.ContentType,
-           sanitizedBody);
+           truncatedBody);
     }
 
     private void LogResponseAsync(HttpContext context, long elapsedMs, string responseBody)
     {
         var response = context.Response;
         var sanitizedBody = RedactSensitiveData(responseBody);
+        var truncatedBody = TruncateBody(sanitizedBody);
 
         LogLevel logLevel = response.StatusCode switch
         {
@@ -103,7 +109,7 @@ internal sealed class RequestResponseLoggingMiddleware
             "Body: {ResponseBody}",
             response.StatusCode,
             elapsedMs,
-            sanitizedBody);
+            truncatedBody);
     }
 
     private static async Task<string> ReadRequestBodyAsync(HttpRequest request)
@@ -159,6 +165,21 @@ internal sealed class RequestResponseLoggingMiddleware
             $@"""({pattern})""\s*:\s*""[^""]*""",
             @"""$1"":""***""",
             RegexOptions.IgnoreCase);
+    }
+
+    private static string? TruncateBody(string? body)
+    {
+        if (string.IsNullOrEmpty(body))
+        {
+            return body;
+        }
+
+        if (body.Length <= _maxBodyLogLength)
+        {
+            return body;
+        }
+
+        return body.Substring(0, _maxBodyLogLength) + _truncationMessage;
     }
 
     private static string GetOrCreateCorrelationId(HttpContext context)

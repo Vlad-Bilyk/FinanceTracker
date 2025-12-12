@@ -1,0 +1,343 @@
+﻿@page "/operations"
+
+@using FinanceTracker.BlazorUI.Models.Operation
+@using FinanceTracker.BlazorUI.Models.Wallet
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject WalletsApiClient WalletsApiClient
+@inject OperationsApiClient OperationsApiClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Operations</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-6">
+    <MudItem xs="12" md="11" lg="10">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudStack Spacing="2">
+                <!-- Header -->
+                <MudStack Row="true"
+                          Justify="Justify.SpaceBetween"
+                          AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h5">
+                        Operations
+                    </MudText>
+
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Disabled="_isLoadingFilters"
+                               OnClick="OnAddClickedAsync">
+                        Add operation
+                    </MudButton>
+                </MudStack>
+
+                <!-- Filters -->
+                <MudPaper Class="pa-3 mt-2" Elevation="1">
+                    <MudGrid Spacing="2" Justify="Justify.Center">
+
+                        <!-- Wallet filter -->
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="Guid?"
+                                       Label="Wallet"
+                                       Value="_selectedWalletId"
+                                       ValueChanged="OnWalletChanged"
+                                       Dense="true"
+                                       Margin="Margin.Dense"
+                                       Class="mr-2"
+                                       Disabled="_isLoadingFilters"
+                                       ToStringFunc="FormatWalletLabel">
+                                <MudSelectItem T="Guid?" Value="@((Guid?)null)">All wallets</MudSelectItem>
+                                @foreach (var wallet in _wallets)
+                                {
+                                    <MudSelectItem T="Guid?" Value="@wallet.Id">
+                                        @wallet.Name (@wallet.BaseCurrencyCode)
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <!-- Date filters -->
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudDatePicker Label="From"
+                                           Date="_fromDate"
+                                           DateChanged="OnFromDateChanged"
+                                           MaxDate="_toDate"
+                                           Clearable="true"
+                                           Margin="Margin.Dense"
+                                           Disabled="_isLoadingFilters" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudDatePicker Label="To"
+                                           Date="_toDate"
+                                           DateChanged="OnToDateChanged"
+                                           MinDate="_fromDate"
+                                           Clearable="true"
+                                           Margin="Margin.Dense"
+                                           Disabled="_isLoadingFilters" />
+                        </MudItem>
+
+                        <!-- Clear button -->
+                        <MudItem xs="12" md="2">
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Default"
+                                       Class="ml-2"
+                                       Disabled="_isLoadingFilters"
+                                       OnClick="ClearFilters">
+                                Clear
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- Table -->
+                <OperationsTable WalletId="_selectedWalletId"
+                                 From="_fromDate"
+                                 To="_toDate"
+                                 Wallets="_wallets"
+                                 ShowActions="true"
+                                 EditClicked="OnEditClickedAsync"
+                                 DeleteClicked="OnDeleteClickedAsync"
+                                 AutoReloadOnParameterChanged="true"
+                                 @ref="_operationsTable" />
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    private IReadOnlyList<WalletDto> _wallets = [];
+    private Guid? _selectedWalletId;
+
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+
+    private bool _isLoadingFilters;
+    private OperationsTable? _operationsTable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoadingFilters = true;
+
+        try
+        {
+            await LoadWalletsAsync();
+            InitializeFiltersFromQuery();
+        }
+        finally
+        {
+            _isLoadingFilters = false;
+        }
+    }
+
+    private async Task LoadWalletsAsync()
+    {
+        try
+        {
+            _wallets = await WalletsApiClient.GetUserWalletsAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to load wallets list.", Severity.Error);
+        }
+    }
+
+    private void InitializeFiltersFromQuery()
+    {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("walletId", out var walletValues)
+            && Guid.TryParse(walletValues.FirstOrDefault(), out var walletId))
+        {
+            _selectedWalletId = walletId;
+        }
+    }
+
+    private void OnWalletChanged(Guid? walletId)
+    {
+        _selectedWalletId = walletId;
+    }
+
+    private void OnToDateChanged(DateTime? newValue)
+    {
+        _toDate = newValue;
+    }
+
+    private void OnFromDateChanged(DateTime? newValue)
+    {
+        _fromDate = newValue;
+    }
+
+    private void ClearFilters()
+    {
+        _selectedWalletId = null;
+        _fromDate = null;
+        _toDate = null;
+
+        NavigationManager.NavigateTo("/operations", replace: true);
+    }
+
+    private async Task ReloadTableAsync()
+    {
+        if (_operationsTable is not null)
+        {
+            await _operationsTable.ReloadAsync();
+        }
+    }
+
+    private async Task OnAddClickedAsync()
+    {
+        if (_selectedWalletId is null)
+        {
+            Snackbar.Add("Select a wallet before creating an operation.", Severity.Warning);
+            return;
+        }
+
+        var wallet = _wallets.FirstOrDefault(w => w.Id == _selectedWalletId);
+        var baseCurrency = wallet?.BaseCurrencyCode ?? string.Empty;
+
+        var model = new OperationFormModel
+        {
+            Date = DateTime.Now,
+            WalletId = _selectedWalletId.Value,
+            CurrencyOriginalCode = baseCurrency
+        };
+
+        var dialogResult = await ShowUpsertDialogAsync("Create operation", model, false);
+
+        if (dialogResult is null || dialogResult.Canceled)
+        {
+            return;
+        }
+
+        var formModel = (OperationFormModel)dialogResult.Data!;
+        var dto = MapFormModel(formModel);
+
+        var apiResult = await OperationsApiClient.CreateAsync(formModel.WalletId, dto);
+        await ProcessResultAsync(apiResult, "Operation created", "Operation wasn't created");
+    }
+
+    private async Task OnEditClickedAsync(OperationDetailsDto operation)
+    {
+        var walletBaseCurrency = GetWalletBaseCurrency(operation);
+
+        var model = new OperationFormModel
+        {
+            Id = operation.Id,
+            WalletId = operation.WalletId,
+            TypeId = operation.TypeId,
+            AmountOriginal = operation.AmountOriginal,
+            CurrencyOriginalCode = operation.CurrencyOriginalCode ?? walletBaseCurrency ?? string.Empty,
+            Date = operation.Date,
+            Note = operation.Note
+        };
+
+        var dialogResult = await ShowUpsertDialogAsync("Edit operation", model, true);
+
+        if (dialogResult is null || dialogResult.Canceled)
+        {
+            return;
+        }
+
+        var formModel = (OperationFormModel)dialogResult.Data!;
+        var dto = MapFormModel(formModel);
+
+        var apiResult = await OperationsApiClient.UpdateAsync(formModel.WalletId, formModel.Id!.Value, dto);
+        await ProcessResultAsync(apiResult, "Operation updated", "Operation wasn't updated");
+    }
+
+    private async Task OnDeleteClickedAsync(OperationDetailsDto operation)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "Delete operation",
+            $"Are you sure you want to delete operation '{operation.TypeName}' on {operation.Date:yyyy-MM-dd}?",
+            yesText: "Delete",
+            cancelText: "Cancel",
+            options: new DialogOptions { CloseButton = true });
+
+        if (confirmed is not true)
+        {
+            return;
+        }
+
+        var apiResult = await OperationsApiClient.DeleteAsync(operation.WalletId, operation.Id);
+        await ProcessResultAsync(apiResult, "Operation deleted", "Operation wasn't deleted");
+    }
+
+    private async Task ProcessResultAsync(ApiResult apiResult, string successMessage, string errorMessage)
+    {
+        if (!apiResult.IsSuccess)
+        {
+            Snackbar.Add(errorMessage, Severity.Error);
+
+            foreach (var err in apiResult.GeneralErrors)
+            {
+                Snackbar.Add(err, Severity.Error);
+            }
+
+            return;
+        }
+
+        Snackbar.Add(successMessage, Severity.Success);
+        await ReloadTableAsync();
+    }
+
+    private async Task<DialogResult?> ShowUpsertDialogAsync(
+        string title, OperationFormModel formModel, bool isEdit)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(OperationDialog.Title), title },
+            { nameof(OperationDialog.Model), formModel },
+            { nameof(OperationDialog.IsEdit), isEdit }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<OperationDialog>(title, parameters, options);
+        return await dialog.Result;
+    }
+
+    private static OperationUpsertDto MapFormModel(OperationFormModel formModel)
+    {
+        return new OperationUpsertDto
+        {
+            TypeId = formModel.TypeId,
+            AmountOriginal = formModel.AmountOriginal,
+            CurrencyOriginalCode = formModel.CurrencyOriginalCode,
+            Date = formModel.Date,
+            Note = formModel.Note
+        };
+    }
+
+    private string FormatWalletLabel(Guid? walletId)
+    {
+        if (!walletId.HasValue)
+        {
+            return "All wallets";
+        }
+
+        var wallet = _wallets.FirstOrDefault(w => w.Id == walletId.Value);
+        if (wallet is null)
+        {
+            return walletId.Value.ToString();
+        }
+
+        return $"{wallet.Name} ({wallet.BaseCurrencyCode})";
+    }
+
+    private string? GetWalletBaseCurrency(OperationDetailsDto operation)
+    {
+        return _wallets.FirstOrDefault(w => w.Id == operation.WalletId)?.BaseCurrencyCode;        
+    }
+}

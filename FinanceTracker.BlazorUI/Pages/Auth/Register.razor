@@ -1,0 +1,106 @@
+﻿@page "/register"
+
+@using FinanceTracker.BlazorUI.Models.Auth
+@using FinanceTracker.BlazorUI.Models.Commons
+@using FinanceTracker.BlazorUI.Services.Auth
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Register</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="8" md="5" lg="4">
+        <MudPaper Class="mt-10 pa-6" Elevation="4">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h5" Align="Align.Center">
+                    Create account
+                </MudText>
+
+                <MudText Typo="Typo.body2"
+                         Align="Align.Center"
+                         Color="Color.Primary">
+                    Register to start tracking your finances
+                </MudText>
+
+                <MudForm @ref="_form" Model="_model" @bind-IsValid="_isFormValid">
+                    <MudStack Spacing="2">
+                        <MudTextField T="string"
+                                      @bind-Value="_model.UserName"
+                                      For="@(() => _model.UserName)"
+                                      Label="Username"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      Required="true"
+                                      RequiredError="Username is required" />
+
+                        <MudTextField T="string"
+                                      @bind-Value="_model.Password"
+                                      For="@(() => _model.Password)"
+                                      Label="Password"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      InputType="InputType.Password"
+                                      Required="true"
+                                      RequiredError="Password is required" />
+
+                        <MudButton Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   FullWidth="true"
+                                   Disabled="@(_isSubmitting || !_isFormValid)"
+                                   OnClick="SubmitAsync">
+                            @_buttonText
+                        </MudButton>
+
+                        <MudText Typo="Typo.body2" Align="Align.Center">
+                            Already have an account?
+                            <MudLink Href="/login">Login</MudLink>
+                        </MudText>
+                    </MudStack>
+                </MudForm>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    private readonly RegisterRequest _model = new();
+    private MudForm? _form;
+    private bool _isSubmitting;
+    private bool _isFormValid;
+
+    private string _buttonText => _isSubmitting ? "Registering..." : "Register";
+
+    private async Task SubmitAsync()
+    {
+        await _form!.Validate();
+        if (!_isFormValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            var result = await AuthApiClient.RegisterAsync(_model);
+
+            if (!result.IsSuccess)
+            {
+                foreach (var err in result.GeneralErrors)
+                {
+                    Snackbar.Add(err, Severity.Error);
+                }
+                return;
+            }
+
+            Snackbar.Add("Registration successful. You can login now.", Severity.Success);
+            NavigationManager.NavigateTo("/login");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

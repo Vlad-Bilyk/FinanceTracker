@@ -1,0 +1,99 @@
+﻿@page "/login"
+
+@using FinanceTracker.BlazorUI.Models.Auth
+@using FinanceTracker.BlazorUI.Services.Auth
+@inject AuthApiClient AuthApiClient
+@inject AuthState AuthState
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="8" md="5" lg="4">
+        <MudPaper Class="mt-10 pa-6" Elevation="4">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h5" Align="Align.Center">
+                    Login
+                </MudText>
+
+                <MudText Typo="Typo.body2"
+                         Align="Align.Center"
+                         Color="Color.Primary">
+                    Sign in to your FinanceTracker account
+                </MudText>
+
+                <MudForm @ref="_form" Model="_model" @bind-IsValid="_isFormValid">
+                    <MudStack Spacing="2">
+                        <MudTextField T="string"
+                                      @bind-Value="_model.UserName"
+                                      For="@(() => _model.UserName)"
+                                      Label="Username"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start" />
+
+                        <MudTextField T="string"
+                                      @bind-Value="_model.Password"
+                                      For="@(() => _model.Password)"
+                                      Label="Password"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      InputType="InputType.Password" />
+
+                        <MudButton ButtonType="ButtonType.Button"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   FullWidth="true"
+                                   Disabled="@(_isSubmitting || !_isFormValid)"
+                                   OnClick="SubmitAsync">
+                            @ButtonText
+                        </MudButton>
+                    </MudStack>
+                </MudForm>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private readonly LoginRequest _model = new();
+    private MudForm? _form;
+    private bool _isSubmitting;
+    private bool _isFormValid;
+
+    private string ButtonText
+    {
+        get
+        {
+            return _isSubmitting ? "Signing in..." : "Login";
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        await _form!.Validate();
+        if (!_isFormValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+
+        try
+        {
+            var response = await AuthApiClient.LoginAsync(_model);
+
+            if (response is null || string.IsNullOrWhiteSpace(response.JwtToken))
+            {
+                Snackbar.Add("Invalid username or password.", Severity.Error);
+                return;
+            }
+
+            await AuthState.SetTokenAsync(response.JwtToken);
+            Snackbar.Add("Successfully logged in.", Severity.Success);
+            NavigationManager.NavigateTo("/", true);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

@@ -1,0 +1,289 @@
+﻿@page "/profile"
+
+@using FinanceTracker.BlazorUI.Models.User
+@using FinanceTracker.BlazorUI.Services.Auth
+
+@inject UsersApiClient UsersApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthState AuthState
+@inject NavigationManager NavigationManager
+
+<PageTitle>Profile</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-6">
+    <MudItem xs="12" md="10" lg="8">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h5">
+                    Profile
+                </MudText>
+
+                @if (_isLoading)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center">
+                        <MudProgressCircular Indeterminate="true" />
+                    </MudStack>
+                }
+                else if (_user is null)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Error">
+                        Failed to load user profile.
+                    </MudText>
+                }
+                else
+                {
+                    <!-- Username block -->
+                    <MudPaper Class="pa-3" Elevation="1">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.h6">Account details</MudText>
+
+                            <MudForm @ref="_userNameForm">
+                                <MudStack Spacing="2">
+                                    <MudTextField @bind-Value="_userName"
+                                                  Label="User name"
+                                                  Required="true"
+                                                  RequiredError="User name is required"
+                                                  Disabled="_isSavingUser" />
+
+                                    <MudButton OnClick="SaveUserNameAsync"
+                                               Color="Color.Primary"
+                                               Variant="Variant.Filled"
+                                               Disabled="_isSavingUser">
+                                        @(_isSavingUser ? "Saving..." : "Save changes")
+                                    </MudButton>
+                                </MudStack>
+                            </MudForm>
+                        </MudStack>
+                    </MudPaper>
+
+                    <!-- Change password block -->
+                    <MudPaper Class="pa-3 mt-4" Elevation="1">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.h6">Change password</MudText>
+
+                            <MudForm @ref="_passwordForm">
+                                <MudStack Spacing="2">
+                                    <MudTextField @bind-Value="_passwordModel.CurrentPassword"
+                                                  Label="Current password"
+                                                  InputType="InputType.Password"
+                                                  Required="true"
+                                                  RequiredError="Current password is required"
+                                                  Disabled="_isChangingPassword" />
+
+                                    <MudTextField @bind-Value="_passwordModel.NewPassword"
+                                                  Label="New password"
+                                                  InputType="InputType.Password"
+                                                  Required="true"
+                                                  RequiredError="New password is required"
+                                                  Disabled="_isChangingPassword" />
+
+                                    <MudTextField @bind-Value="_passwordModel.ConfirmPassword"
+                                                  Label="Confirm new password"
+                                                  InputType="InputType.Password"
+                                                  Required="true"
+                                                  RequiredError="Please confirm new password"
+                                                  Disabled="_isChangingPassword" />
+
+                                    <MudButton OnClick="ChangePasswordAsync"
+                                               Color="Color.Primary"
+                                               Variant="Variant.Filled"
+                                               Disabled="_isChangingPassword">
+                                        @(_isChangingPassword ? "Updating..." : "Change password")
+                                    </MudButton>
+                                </MudStack>
+                            </MudForm>
+                        </MudStack>
+                    </MudPaper>
+
+                    <!-- Danger zone -->
+                    <MudPaper Class="pa-3 mt-4" Elevation="1">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.h6" Color="Color.Error">
+                                Danger zone
+                            </MudText>
+
+                            <MudText Typo="Typo.body2">
+                                Deleting your account is permanent and cannot be undone.
+                            </MudText>
+
+                            <MudButton Color="Color.Error"
+                                       Variant="Variant.Outlined"
+                                       Disabled="_isDeleting"
+                                       OnClick="DeleteAccountAsync">
+                                @(_isDeleting ? "Deleting..." : "Delete account")
+                            </MudButton>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    private UserDto? _user;
+    private string _userName = string.Empty;
+
+    private bool _isLoading;
+    private bool _isSavingUser;
+    private bool _isChangingPassword;
+    private bool _isDeleting;
+
+    private MudForm? _userNameForm;
+    private MudForm? _passwordForm;
+
+    private ChangePasswordModel _passwordModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _user = await UsersApiClient.GetMe();
+
+            if (_user is not null)
+            {
+                _userName = _user.UserName;
+            }
+            else
+            {
+                Snackbar.Add("Failed to load user profile.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to load user profile.", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveUserNameAsync()
+    {
+        if (_userNameForm is not null)
+        {
+            await _userNameForm.Validate();
+
+            if (!_userNameForm.IsValid)
+            {
+                return;
+            }
+        }
+
+        _isSavingUser = true;
+
+        try
+        {
+            var updateDto = new UserUpdateDto(_userName);
+
+            var result = await UsersApiClient.UpdateAsync(_user!.Id, updateDto);
+
+            if (result.IsSuccess)
+            {
+                _user = _user with { UserName = _userName };
+            }
+
+            await ProcessResultAsync(result, "User name updated successfully", "Failed to updated user name");
+        }
+        finally
+        {
+            _isSavingUser = false;
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (_passwordForm is not null)
+        {
+            await _passwordForm.Validate();
+
+            if (!_passwordForm.IsValid)
+            {
+                return;
+            }
+        }
+
+        if (_passwordModel.NewPassword != _passwordModel.ConfirmPassword)
+        {
+            Snackbar.Add("New password and confirmation do not match.", Severity.Error);
+            return;
+        }
+
+        _isChangingPassword = true;
+        var request = new ChangePasswordRequest
+        {
+            CurrentPassword = _passwordModel.CurrentPassword,
+            NewPassword = _passwordModel.NewPassword
+        };
+
+        var result = await UsersApiClient.UpdatePasswordAsync(request);
+
+        if (result.IsSuccess)
+        {
+            _passwordModel = new ChangePasswordModel();
+        }
+
+        await ProcessResultAsync(result, "Password updated successfully", "Failed to change password");
+    }
+
+    private async Task DeleteAccountAsync()
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Delete account",
+            "Are you sure you want to delete your account? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel",
+            options: new DialogOptions
+            {
+                MaxWidth = MaxWidth.ExtraSmall,
+                CloseButton = true,
+            });
+
+        if (confirm != true)
+        {
+            return;
+        }
+
+        _isDeleting = true;
+        var result = await UsersApiClient.DeleteAsync(_user!.Id);
+
+        if (result.IsSuccess)
+        {
+            await AuthState.ClearAsync();
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+        }
+
+        await ProcessResultAsync(result, "Account deleted", "Failed to delete account");
+    }
+
+    private async Task ProcessResultAsync(ApiResult apiResult, string successMessage, string errorMessage)
+    {
+        if (!apiResult.IsSuccess)
+        {
+            Snackbar.Add(errorMessage, Severity.Error);
+
+            foreach (var err in apiResult.GeneralErrors)
+            {
+                Snackbar.Add(err, Severity.Error);
+            }
+
+            return;
+        }
+
+        Snackbar.Add(successMessage, Severity.Success);
+    }
+
+    private sealed class ChangePasswordModel
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        public string NewPassword { get; set; } = string.Empty;
+
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

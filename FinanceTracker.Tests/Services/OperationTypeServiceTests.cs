@@ -111,6 +111,13 @@ public class OperationTypeServiceTests
             .ReturnsAsync(1);
     }
 
+    private void SetupAnyByTypeId(Guid id, bool isUsed)
+    {
+        _opRepositoryMock
+            .Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(isUsed);
+    }
+
     #endregion
 
     #region GetTypeByIdAsync Tests
@@ -400,23 +407,21 @@ public class OperationTypeServiceTests
     #region DeleteTypeAsync Tests
 
     [Fact]
-    public async Task DeleteTypeAsync_WithExistingId_DeletesEntity()
+    public async Task DeleteTypeAsync_WithExistingIdAndNotUsed_DeletesEntity()
     {
         // Arrange
         var id = Guid.NewGuid();
         var entity = CreateOperationType(id: id, name: "ToDelete");
 
         SetupGetByIdForUser(id, entity);
-        _opRepositoryMock
-            .Setup(r => r.AnyByTypeIdAsync(id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        SetupAnyByTypeId(id, false);
         SetupSuccessfulSave();
 
         // Act
-        await _sut.DeleteTypeAsync(id);
+        await _sut.DeleteTypeAsync(id, null);
 
         // Assert
-        _opTypeRepositoryMock.Verify(r => r.SoftDelete(entity), Times.Once);
+        _opTypeRepositoryMock.Verify(r => r.Delete(entity), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -428,13 +433,104 @@ public class OperationTypeServiceTests
         SetupGetByIdForUser(id, null);
 
         // Act
-        var act = async () => await _sut.DeleteTypeAsync(id);
+        var act = async () => await _sut.DeleteTypeAsync(id, null);
 
         // Assert
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage($"*{id}*");
 
-        _opTypeRepositoryMock.Verify(r => r.SoftDelete(It.IsAny<FinancialOperationType>()), Times.Never);
+        _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteTypeAsync_WhenTypeUsedAndReplacementNotProvided_ThrowsConflictException()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var entity = CreateOperationType(id: id, name: "ToDelete");
+
+        SetupGetByIdForUser(id, entity);
+        SetupAnyByTypeId(id, true);
+
+        // Act
+        var act = async () => await _sut.DeleteTypeAsync(id, replacementTypeId: null);
+
+        // Assert
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*Replacement type is required*");
+
+        _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+        _opRepositoryMock.Verify(
+            r => r.GetByTypeIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteTypeAsync_WhenTypeUsedAndReplacementProvided_ReassignsOperationsAndDeletesType()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var replacementId = Guid.NewGuid();
+
+        var typeToDelete = CreateOperationType(id: id, name: "Old");
+        var replacementType = CreateOperationType(id: replacementId, name: "New");
+
+        SetupGetByIdForUser(id, typeToDelete);
+        SetupGetByIdForUser(replacementId, replacementType);
+        SetupAnyByTypeId(id, true);
+
+        var op1 = new FinancialOperation
+        {
+            Id = Guid.NewGuid(),
+            TypeId = id
+        };
+
+        var op2 = new FinancialOperation
+        {
+            Id = Guid.NewGuid(),
+            TypeId = id
+        };
+
+        var operations = new List<FinancialOperation> { op1, op2 };
+
+        _opRepositoryMock
+            .Setup(r => r.GetByTypeIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(operations);
+
+        SetupSuccessfulSave();
+
+        // Act
+        await _sut.DeleteTypeAsync(id, replacementId);
+
+        // Assert
+        op1.TypeId.Should().Be(replacementId);
+        op2.TypeId.Should().Be(replacementId);
+
+        _opTypeRepositoryMock.Verify(r => r.Delete(typeToDelete), Times.Once);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteTypeAsync_WhenReplacementEqualsDeletedType_ThrowsConflictException()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var entity = CreateOperationType(id: id, name: "Type");
+
+        SetupGetByIdForUser(id, entity);
+        SetupAnyByTypeId(id, true);
+
+        // Act
+        var act = async () => await _sut.DeleteTypeAsync(id, id);
+
+        // Assert
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*Replacement type must be different from deleted type*");
+
+        _opTypeRepositoryMock.Verify(r => r.Delete(It.IsAny<FinancialOperationType>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     #endregion

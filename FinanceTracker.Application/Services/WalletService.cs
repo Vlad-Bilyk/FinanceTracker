@@ -115,8 +115,8 @@ public class WalletService : IWalletService
         var exists = await _unitOfWork.Currencies.ExistsAsync(currencyCode, ct);
         if (!exists)
         {
-            throw new ValidationException(
-                $"Currency code '{currencyCode}' is not supported" +
+            throw new ConflictException(
+                $"Currency code '{currencyCode}' is not supported. " +
                 $"Use GET /api/currencies to see available currencies.");
         }
     }

@@ -1,0 +1,313 @@
+﻿@page "/operation-types"
+
+@using System.Threading.Tasks
+@using FinanceTracker.BlazorUI.Models.OperationType
+@using Microsoft.AspNetCore.Authorization
+
+@inject OperationTypesApiClient OperationTypesApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>OperationTypes</PageTitle>
+
+<MudGrid Justify="Justify.Center" Class="mt-6">
+    <MudItem xs="12" md="10" lg="8">
+        <MudPaper Class="pa-4" Elevation="3">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h5">
+                    Operation types
+                </MudText>
+
+                <MudStack Row="true"
+                          AlignItems="AlignItems.Center"
+                          Justify="Justify.SpaceBetween">
+
+                    <MudTextField T="string"
+                                  @bind-Value="_searchTerm"
+                                  Placeholder="Search by name or description"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true"
+                                  Margin="Margin.Dense"
+                                  Style="max-width: 320px"/>
+
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Disabled="_isLoading"
+                               OnClick="OnAddClickedAsync">
+                        Add type
+                    </MudButton>
+                </MudStack>
+
+                @if (_isLoading)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-6">
+                        <MudProgressCircular Indeterminate="true" />
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Loading operation types...
+                        </MudText>
+                    </MudStack>
+                }
+                else if (_loadErrorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error">
+                        @_loadErrorMessage
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="_operationTypes"
+                              Hover="true"
+                              Dense="true"
+                              Filter="FilterTypes"
+                              Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Kind</MudTh>
+                            <MudTh Style="width: 120px;">Actions</MudTh>
+                        </HeaderContent>
+
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">
+                                @context.Name
+                            </MudTd>
+
+                            <MudTd DataLabel="Description">
+                                @context.Description
+                            </MudTd>
+
+                            <MudTd DataLabel="Kind">
+                                    @context.Kind
+                            </MudTd>
+
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OnEditClickedAsync(context))"
+                                               aria-label="Edit operation type" />
+
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               Class="ml-1"
+                                               OnClick="@(() => OnDeleteClickedAsync(context))"
+                                               aria-label="Delete operation type" />
+                            </MudTd>
+                        </RowTemplate>
+
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="py-4 px-2">
+                                No operation types found.
+                            </MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private readonly List<OperationTypeDto> _operationTypes = new();
+
+    private bool _isLoading;
+    private string? _loadErrorMessage;
+    private string? _searchTerm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOperationTypesAsync();
+    }
+
+    private async Task LoadOperationTypesAsync()
+    {
+        _isLoading = true;
+        _loadErrorMessage = null;
+
+        try
+        {
+            var items = await OperationTypesApiClient.GetAllAsync();
+
+            _operationTypes.Clear();
+            _operationTypes.AddRange(items);
+        }
+        catch (Exception)
+        {
+            _loadErrorMessage = "Failed to load operation types.";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool FilterTypes(OperationTypeDto type)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            return true;
+        }
+
+        var term = _searchTerm.Trim();
+
+        return type.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || type.Description.Contains(term, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task OnAddClickedAsync()
+    {
+        var formModel = new OperationTypeFormModel();
+        var title = "Create operation type";
+
+        var result = await ShowUpsertDialogAsync(title, formModel, false);
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var model = (OperationTypeFormModel)result.Data!;
+
+        var createDto = new OperationTypeCreateDto
+        {
+            Name = model.Name,
+            Description = model.Description,
+            Kind = model.Kind
+        };
+
+        var apiResult = await OperationTypesApiClient.CreateAsync(createDto);
+        await ResultProcessingAsync(apiResult, "Operation type created", "Operation type wasn't created");
+    }
+
+    private async Task OnEditClickedAsync(OperationTypeDto type)
+    {
+        var formModel = new OperationTypeFormModel
+        {
+            Id = type.Id,
+            Name = type.Name,
+            Description = type.Description,
+            Kind = type.Kind
+        };
+        var title = "Edit operation type";
+
+        var result = await ShowUpsertDialogAsync(title, formModel, true);
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var model = (OperationTypeFormModel)result.Data!;
+
+        var updateDto = new OperationTypeUpdateDto
+        {
+            Name = model.Name,
+            Description = model.Description
+        };
+
+        var apiResult = await OperationTypesApiClient.UpdateAsync(type.Id, updateDto);
+        await ResultProcessingAsync(apiResult, "Operation type updated", "Operation type wasn't updated");
+    }
+
+    private async Task OnDeleteClickedAsync(OperationTypeDto type)
+    {
+        var candidates = _operationTypes
+            .Where(t => t.Id != type.Id)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            Snackbar.Add(
+                "Cannot delete this type because there is no other type to replace it. " +
+                "Create another type first.",
+                Severity.Warning);
+
+            return;
+        }
+
+        var result = await ShowDeleteDialogAsync(type, candidates);
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var replacementTypeId = (Guid?)result.Data;
+        var apiResult = await OperationTypesApiClient.DeleteAsync(type.Id, replacementTypeId);
+        await ResultProcessingAsync(apiResult, "Operation type deleted", "Operation type wasn't deleted");
+    }
+
+    private async Task<bool> ResultProcessingAsync(ApiResult apiResult, string successMessage, string failMessage)
+    {
+        if (!apiResult.IsSuccess)
+        {
+            Snackbar.Add(failMessage, Severity.Error);
+            ShowErrors(apiResult);
+            return false;
+        }
+
+        Snackbar.Add(successMessage, Severity.Success);
+        await LoadOperationTypesAsync();
+        return true;
+    }
+
+    private async Task<DialogResult?> ShowUpsertDialogAsync(
+        string title, OperationTypeFormModel formModel, bool isKindReadOnly)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(OperationTypeDialog.Title), title },
+            { nameof(OperationTypeDialog.Model), formModel },
+            { nameof(OperationTypeDialog.IsKindReadOnly), isKindReadOnly }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<OperationTypeDialog>(null, parameters, options);
+        return await dialog.Result;
+    }
+
+    private async Task<DialogResult?> ShowDeleteDialogAsync(OperationTypeDto type, List<OperationTypeDto> candidates)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(OperationTypeDeleteDialog.TypeToDelete), type },
+            { nameof(OperationTypeDeleteDialog.CandidateTypes), candidates }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<OperationTypeDeleteDialog>(
+            "Delete operation type",
+            parameters,
+            options);
+
+        return await dialog.Result;
+    }
+
+    /// <summary>
+    /// Show errors from api
+    /// </summary>
+    private void ShowErrors(ApiResult apiResult)
+    {
+        foreach (var message in apiResult.GeneralErrors)
+        {
+            Snackbar.Add(message, Severity.Error);
+        }
+    }
+}

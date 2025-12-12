@@ -1,5 +1,5 @@
-﻿using FinanceTracker.Application.DTOs;
-using FinanceTracker.Application.DTOs.Operation;
+﻿using FinanceTracker.Application.DTOs.Operation;
+using FinanceTracker.Application.DTOs.Report;
 using FinanceTracker.Application.Exceptions;
 using FinanceTracker.Application.Interfaces.Common;
 using FinanceTracker.Application.Interfaces.Repositories;
@@ -29,23 +29,13 @@ public class ReportService : IReportService
     public async Task<FinanceReportDto> CreateDailyReportAsync(
         Guid walletId, DateOnly date, CancellationToken ct = default)
     {
-        var wallet = await GetValidWalletAsync(walletId, ct);
+        _ = await GetValidWalletAsync(walletId, ct);
         var operations = await GetOperationsAsync(walletId, date, ct);
 
         _logger.LogInformation("Generated daily report: Wallet={WalletId}, Date={Date}, Operations={Count}",
             walletId, date, operations.Count);
 
-        return new FinanceReportDto
-        {
-            WalletId = walletId,
-            WalletName = wallet.Name,
-            CurrencyCode = wallet.BaseCurrencyCode,
-            Start = date,
-            End = date,
-            TotalIncome = CalculateTotalIncome(operations),
-            TotalExpense = CalculateTotalExpense(operations),
-            Operations = operations
-        };
+        return BuidFinanceReportDto(operations);
     }
 
     public async Task<FinanceReportDto> CreatePeriodReportAsync(
@@ -55,28 +45,18 @@ public class ReportService : IReportService
         {
             throw new ValidationException(errors:
             [
-                new ValidationFailure(nameof(start) + nameof(end), "End date must be after or equal to start date")
+                new ValidationFailure("'start' or 'end' date", "End date must be after or equal to start date")
             ]);
         }
 
-        var wallet = await GetValidWalletAsync(walletId, ct);
+        _ = await GetValidWalletAsync(walletId, ct);
         var operations = await GetOperationsAsync(walletId, start, end, ct);
 
         _logger.LogInformation("Generated period report from {StartDate} to {EndDate} " +
             "with {OperationCount} operations in wallet {WalletId}",
             start, end, operations.Count, walletId);
 
-        return new FinanceReportDto
-        {
-            WalletId = walletId,
-            WalletName = wallet.Name,
-            CurrencyCode = wallet.BaseCurrencyCode,
-            Start = start,
-            End = end,
-            TotalIncome = CalculateTotalIncome(operations),
-            TotalExpense = CalculateTotalExpense(operations),
-            Operations = operations
-        };
+        return BuidFinanceReportDto(operations);
     }
 
     private async Task<List<FinancialOperationDetailsDto>> GetOperationsAsync(
@@ -106,18 +86,37 @@ public class ReportService : IReportService
             )).ToList();
     }
 
-    private static decimal CalculateTotalIncome(IEnumerable<FinancialOperationDetailsDto> operations)
+    private static decimal CalculateTotal(
+        IEnumerable<FinancialOperationDetailsDto> operations, OperationKind kind)
     {
         return operations
-            .Where(x => x.Kind == OperationKind.Income)
+            .Where(x => x.Kind == kind)
             .Sum(x => x.AmountBase);
     }
 
-    private static decimal CalculateTotalExpense(IEnumerable<FinancialOperationDetailsDto> operations)
+    private static List<CategoryAmountDto> CalculateSumByCategory(
+        IEnumerable<FinancialOperationDetailsDto> operations, OperationKind kind)
     {
         return operations
-            .Where(x => x.Kind == OperationKind.Expense)
-            .Sum(x => x.AmountBase);
+            .Where(x => x.Kind == kind)
+            .GroupBy(x => new { x.TypeId, x.TypeName })
+            .Select(g => new CategoryAmountDto
+            {
+                TypeId = g.Key.TypeId,
+                TypeName = g.Key.TypeName,
+                Amount = g.Sum(x => x.AmountBase)
+            }).ToList();
+    }
+
+    private static FinanceReportDto BuidFinanceReportDto(IEnumerable<FinancialOperationDetailsDto> operations)
+    {
+        return new FinanceReportDto
+        {
+            TotalIncome = CalculateTotal(operations, OperationKind.Income),
+            TotalExpense = CalculateTotal(operations, OperationKind.Expense),
+            IncomeByCategory = CalculateSumByCategory(operations, OperationKind.Income),
+            ExpensesByCategory = CalculateSumByCategory(operations, OperationKind.Expense)
+        };
     }
 
     private async Task<Wallet> GetValidWalletAsync(Guid walletId, CancellationToken ct)

@@ -1,0 +1,149 @@
+﻿@using FinanceTracker.BlazorUI.Models
+
+<MudAutocomplete T="CurrencyDto"
+                 Label="@Label"
+                 Value="_selectedCurrency"
+                 ValueChanged="OnCurrencyChanged"
+                 Dense="true"
+                 Clearable="true"
+                 ResetValueOnEmptyText="true"
+                 CoerceText="true"
+                 CoerceValue="true"
+                 ToStringFunc="FormatCurrency"
+                 SearchFunc="SearchCurrenciesAsync"
+                 Disabled="Disabled"
+                 HelperText="@HelperText"
+                 Required="Required"
+                 RequiredError="@RequiredError">
+</MudAutocomplete>
+
+@code
+{
+    [Inject]
+    private CurrencyApiClient CurrencyApiClient { get; set; } = default!;
+
+    // -------- Public API --------
+
+    /// <summary>
+    /// Label for the field.
+    /// </summary>
+    [Parameter]
+    public string Label { get; set; } = "Currency";
+
+    /// <summary>
+    /// Optional helper text displayed under the field.
+    /// </summary>
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    /// <summary>
+    /// Currently selected currency code (e.g., "USD").
+    /// </summary>
+    [Parameter]
+    public string? Value { get; set; }
+
+    /// <summary>
+    /// Callback when selected currency changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Whether the field is required on the form level.
+    /// </summary>
+    [Parameter]
+    public bool Required { get; set; }
+
+    /// <summary>
+    /// Validation message for required field.
+    /// </summary>
+    [Parameter]
+    public string RequiredError { get; set; } = "Currency is required.";
+
+    /// <summary>
+    /// Disables the control when true.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    // -------- Internal state --------
+
+    private IReadOnlyList<CurrencyDto> _currencies = [];
+    private bool _isLoaded;
+    private CurrencyDto? _selectedCurrency;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EnsureCurrenciesLoadedAsync();
+        InitializeSelectedCurrency();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await EnsureCurrenciesLoadedAsync();
+        InitializeSelectedCurrency();
+    }
+
+    private async Task EnsureCurrenciesLoadedAsync()
+    {
+        if (_isLoaded)
+        {
+            return;
+        }
+
+        _currencies = await CurrencyApiClient.GetAllAsync();
+        _isLoaded = true;
+    }
+
+    private void InitializeSelectedCurrency()
+    {
+        if (!_isLoaded)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Value))
+        {
+            _selectedCurrency = null;
+            return;
+        }
+
+        _selectedCurrency = _currencies
+            .FirstOrDefault(c => string.Equals(c.Code, Value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string FormatCurrency(CurrencyDto? currency)
+    {
+        if (currency is null)
+        {
+            return string.Empty;
+        }
+
+        return $"{currency.Code} - {currency.Name}";
+    }
+
+    private async Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string text, CancellationToken ct)
+    {
+        await EnsureCurrenciesLoadedAsync();
+
+        text = text.Trim();
+
+        return _currencies
+            .Where(c =>
+                c.Code.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+                c.Name.Contains(text, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(c => c.Code);
+    }
+
+    private async Task OnCurrencyChanged(CurrencyDto? value)
+    {
+        _selectedCurrency = value;
+        var newCode = _selectedCurrency?.Code;
+
+        if (Value != newCode)
+        {
+            Value = newCode;
+            await ValueChanged.InvokeAsync(newCode);
+        }
+    }
+}

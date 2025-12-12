@@ -96,9 +96,6 @@ namespace FinanceTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text");
@@ -113,7 +110,7 @@ namespace FinanceTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Kind", "Name", "IsDeleted")
+                    b.HasIndex("UserId", "Kind", "Name")
                         .IsUnique();
 
                     b.ToTable("FinancialOperationTypes");
