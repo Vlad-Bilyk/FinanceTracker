@@ -1,3 +1,5 @@
+using DotNetEnv;
+using DotNetEnv.Configuration;
 using FinanceTracker.Api.Middlewares;
 using FinanceTracker.Api.Services;
 using FinanceTracker.Application.DTOs.Auth;
@@ -35,7 +37,7 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithEnvironmentName()
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] [{UserId}] {Message:lj}{NewLine}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] [{UserId}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "Logs/app-.log",
         rollingInterval: RollingInterval.Day,
@@ -46,6 +48,9 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
+    // Load environment variables from the .env file
+    Env.TraversePath().Load();
+
     var builder = WebApplication.CreateBuilder(args);
 
     // Add services to the container.
@@ -102,7 +107,8 @@ try
 
     // JWT Authentication
     var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-    var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
+    var secretKey = builder.Configuration["JwtSettings:SecretKey"]
+        ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
 
     builder.Services.AddAuthentication(options =>
     {
