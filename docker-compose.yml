@@ -20,6 +20,8 @@ services:
       - finance-tracker-network
 
   api:
+    env_file:
+      - .env
     build:
       context: .
       dockerfile: FinanceTracker.Api/Dockerfile
